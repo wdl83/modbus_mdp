@@ -1,18 +1,26 @@
-CC=gcc
+CC=clang
 
 FLAGS = \
-		 -Wall \
-		 -Wextra \
-		 -Wno-parentheses \
-		 -Wno-unused-parameter \
-		 -Wshadow \
-		 -Wunreachable-code \
-		 -Os \
-		 -g \
-		 -fomit-frame-pointer \
-		 -DHOST
+	-DENABLE_TRACE \
+	-DHOST \
+	-Os \
+	-Wall \
+	-Wextra \
+	-Wno-parentheses \
+	-Wshadow \
+	-Wunreachable-code \
+	-fomit-frame-pointer \
+	-g
 
-CFLAGS = $(FLAGS) -std=gnu99
-CXXFLAGS = $(FLAGS) -std=c++14 -fsanitize=address
+CFLAGS = \
+	$(FLAGS) \
+	-std=gnu99
 
-LDFLAGS = -fsanitize=address -lstdc++ 
+CXXFLAGS = \
+	$(FLAGS) \
+	-std=c++14 \
+	-fsanitize=address
+
+LDFLAGS = \
+	-fsanitize=address \
+	-lstdc++ 

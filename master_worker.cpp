@@ -61,8 +61,17 @@ int main(int argc, char *const argv[])
                 for(auto i = 0u; i < message.parts(); ++i)
                 {
                     auto input = json::parse(message.get<std::string>(i));
-                    Modbus::RTU::JSON::dispatch(master, input, output);
+
+                    ENSURE(input.is_array(), RuntimeError);
+
+                    for(const auto &object : input)
+                    {
+                        ENSURE(object.is_object(), RuntimeError);
+                        Modbus::RTU::JSON::dispatch(master, object, output);
+                    }
                 }
+
+                //std::cout << " OUTOUT " << output.dump(2) << std::endl;
                 return MDP::makeMessage(output.dump());
             });
     }
