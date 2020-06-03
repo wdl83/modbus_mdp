@@ -21,13 +21,13 @@ Master::Master(
             int(dataBits),
             int(stopBits));
 
-    ENSURE(context_, CRuntimeError);
-    ENSURE(0 == modbus_rtu_set_rts(context_, MODBUS_RTU_RTS_NONE), CRuntimeError);
-    ENSURE(0 == modbus_set_debug(context_, gDebug), CRuntimeError);
+    ENSURE(context_, ModbusRuntimeError);
+    ENSURE(0 == modbus_rtu_set_rts(context_, MODBUS_RTU_RTS_NONE), ModbusRuntimeError);
+    ENSURE(0 == modbus_set_debug(context_, gDebug), ModbusRuntimeError);
     /* no inter-character delay required */
     modbus_set_byte_timeout(context_, 0, 0);
     modbus_set_error_recovery(context_, MODBUS_ERROR_RECOVERY_LINK);
-    ENSURE(0 == modbus_connect(context_), CRuntimeError);
+    ENSURE(0 == modbus_connect(context_), ModbusRuntimeError);
 }
 
 Master::~Master()
@@ -64,7 +64,7 @@ auto Master::rd_n16(uint16_t addr, uint8_t count) -> DataSeq
 
     ENSURE(
         count == modbus_read_registers(context_, addr, count, data.data()),
-        CRuntimeError);
+        ModbusRuntimeError);
     return data;
 }
 
@@ -72,7 +72,7 @@ void Master::wr16(uint16_t addr, uint16_t data)
 {
     ENSURE(
         1 == modbus_write_register(context_, addr, data),
-        CRuntimeError);
+        ModbusRuntimeError);
 }
 
 void Master::wr_n16(uint16_t addr, const std::vector<uint16_t> &data)
@@ -81,7 +81,7 @@ void Master::wr_n16(uint16_t addr, const std::vector<uint16_t> &data)
 
     ENSURE(
         int(data.size()) == modbus_write_registers(context_, addr, data.size(), data.data()),
-        CRuntimeError);
+        ModbusRuntimeError);
 }
 
 } /* RTU */
