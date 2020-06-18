@@ -1,8 +1,6 @@
 CC=clang
 
 FLAGS = \
-	-DENABLE_TRACE \
-	-DHOST \
 	-Os \
 	-Wall \
 	-Wextra \
@@ -12,6 +10,12 @@ FLAGS = \
 	-fomit-frame-pointer \
 	-g
 
+ifndef RELEASE
+	FLAGS +=  \
+		-DENABLE_TRACE \
+		-fsanitize=address
+endif
+
 CFLAGS = \
 	$(FLAGS) \
 	-std=gnu99
@@ -19,8 +23,11 @@ CFLAGS = \
 CXXFLAGS = \
 	$(FLAGS) \
 	-std=c++14 \
-	-fsanitize=address
 
 LDFLAGS = \
-	-fsanitize=address \
 	-lstdc++ 
+
+ifndef RELEASE
+	LDFLAGS += \
+		-fsanitize=address
+endif

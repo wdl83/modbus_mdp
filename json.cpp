@@ -14,6 +14,7 @@ const char *const TIMEOUT_MS = "timeout_ms";
 constexpr auto FCODE_RD_HOLDING_REGISTERS = 3;
 constexpr auto FCODE_WR_REGISTER = 6;
 constexpr auto FCODE_WR_REGISTERS = 16;
+constexpr auto FCODE_WR_BYTES = 66;
 
 template <typename T, typename V>
 bool inRange(V value)
@@ -112,6 +113,42 @@ json wrRegisters(Master &master, Addr slave, mSecs timeout, const json &input)
     };
 }
 
+json wrBytes(Master &master, Addr slave, mSecs timeout, const json &input)
+{
+    ENSURE(input.count(ADDR), RuntimeError);
+    ENSURE(input[ADDR].is_number(), RuntimeError);
+
+    const auto addr = input[ADDR].get<int>();
+
+    ENSURE(inRange<uint16_t>(addr), RuntimeError);
+
+    ENSURE(input.count(COUNT), RuntimeError);
+    ENSURE(input[COUNT].is_number(), RuntimeError);
+
+    const auto count = input[COUNT].get<int>();
+
+    ENSURE(inRange<uint8_t>(count), RuntimeError);
+
+    ENSURE(input.count(VALUE), RuntimeError);
+
+    ENSURE(input[VALUE].is_array(), RuntimeError);
+
+    const auto value = input[VALUE].get<std::vector<int>>();
+
+    ENSURE(int(value.size()) == count, RuntimeError);
+
+    Master::ByteSeq seq(std::begin(value), std::end(value));
+
+    master.wrBytes(slave, addr, seq, timeout);
+
+    return json
+    {
+        {SLAVE, slave.value},
+        {ADDR, addr},
+        {COUNT, count}
+    };
+}
+
 void dispatch(Master &master, const json &input, json &output)
 {
     ENSURE(input.count(SLAVE), RuntimeError);
@@ -141,12 +178,6 @@ void dispatch(Master &master, const json &input, json &output)
 
     const auto fcode = input[FCODE].get<int>();
 
-    ENSURE(
-        FCODE_RD_HOLDING_REGISTERS == fcode
-        || FCODE_WR_REGISTER == fcode
-        || FCODE_WR_REGISTERS == fcode,
-        RuntimeError);
-
     switch(fcode)
     {
         case FCODE_RD_HOLDING_REGISTERS:
@@ -162,6 +193,11 @@ void dispatch(Master &master, const json &input, json &output)
         case FCODE_WR_REGISTERS:
         {
             output.push_back(wrRegisters(master, {uint8_t(slave)}, timeout, input));
+            break;
+        }
+        case FCODE_WR_BYTES:
+        {
+            output.push_back(wrBytes(master, {uint8_t(slave)}, timeout, input));
             break;
         }
         default:

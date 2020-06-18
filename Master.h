@@ -6,21 +6,11 @@
 #include <cstdlib>
 #include <vector>
 
-#include <modbus/modbus.h>
-
 #include "Ensure.h"
+#include "SerialPort.h"
 
 namespace Modbus {
 namespace RTU {
-
-enum class BaudRate
-{
-    BR_19200 = 19200
-};
-
-enum class Parity : char {None = 'N', Odd = 'O', Even = 'E'};
-enum class DataBits {Five = 5, Six = 6, Seven = 7, Eight = 8};
-enum class StopBits {One = 1, Two = 2};
 
 struct Addr
 {
@@ -29,46 +19,40 @@ struct Addr
     {}
 };
 
-using uSecs = std::chrono::microseconds;
 using mSecs = std::chrono::milliseconds;
 
-class Master
+struct Master
 {
-    modbus_t *context_ = nullptr;
-public:
+    using BaudRate = SerialPort::BaudRate;
+    using Parity = SerialPort::Parity;
+    using DataBits = SerialPort::DataBits;
+    using StopBits = SerialPort::StopBits;
     using DataSeq = std::vector<uint16_t>;
-
+    using ByteSeq = std::vector<uint8_t>;
+private:
+    std::string devName_;
+    BaudRate baudRate_;
+    Parity parity_;
+    DataBits dataBits_;
+    StopBits stopBits_;
+public:
     Master(
-        const char *device,
+        std::string devName,
         BaudRate baudRate = BaudRate::BR_19200,
         Parity parity = Parity::Even,
         DataBits dataBits = DataBits::Eight,
-        StopBits stopBits = StopBits::One);
+        StopBits stopBits = StopBits::One):
+            devName_{std::move(devName)},
+            baudRate_{baudRate},
+            parity_{parity},
+            dataBits_{dataBits},
+            stopBits_{stopBits}
+    {}
 
-    ~Master();
-
-    void wrRegister(Addr slaveAddr, uint16_t memAddr, uint16_t data, uSecs timeout)
-    {
-        setup(slaveAddr, timeout);
-        wr16(memAddr, data);
-    }
-
-    void wrRegisters(Addr slaveAddr, uint16_t memAddr, const DataSeq &data, uSecs timeout)
-    {
-        setup(slaveAddr, timeout);
-        wr_n16(memAddr, data);
-    }
-
-    DataSeq rdRegisters(Addr slaveAddr, uint16_t memAddr, uint8_t count, uSecs timeout)
-    {
-        setup(slaveAddr, timeout);
-        return rd_n16(memAddr, count);
-    }
-private:
-    void setup(Addr addr, uSecs timeout);
-    DataSeq rd_n16(uint16_t addr, uint8_t count);
-    void wr16(uint16_t addr, uint16_t data);
-    void wr_n16(uint16_t addr, const DataSeq &);
+    void wrRegister(Addr slaveAddr, uint16_t memAddr, uint16_t data, mSecs timeout);
+    void wrRegisters(Addr slaveAddr, uint16_t memAddr, const DataSeq &data, mSecs timeout);
+    DataSeq rdRegisters(Addr slaveAddr, uint16_t memAddr, uint8_t count, mSecs timeout);
+    void wrBytes(Addr slaveAddr, uint16_t memAddr, const ByteSeq &data, mSecs timeout);
 };
 
 } /* RTU */

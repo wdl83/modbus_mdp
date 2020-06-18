@@ -11,7 +11,6 @@ TARGET = master_worker
 
 LDFLAGS += \
 	-L ../zmqpp-root/lib \
-	-lmodbus \
 	-lpthread \
 	-lzmq \
 	-lzmqpp
@@ -19,13 +18,15 @@ LDFLAGS += \
 # CSRCS =
 
 CXXSRCS = \
-	../mdp/Worker.cpp \
 	../mdp/MutualHeartbeatMonitor.cpp \
+	../mdp/Worker.cpp \
 	../mdp/Worker.cpp \
 	../mdp/WorkerTask.cpp \
 	../mdp/ZMQIdentity.cpp \
 	../mdp/ZMQWorkerContext.cpp \
 	Master.cpp \
+	SerialPort.cpp \
+	crc.cpp \
 	json.cpp \
 	master_worker.cpp
 

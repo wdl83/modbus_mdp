@@ -1,87 +1,375 @@
 #include "Master.h"
+#include "crc.h"
 
+#include <iomanip>
+#include <iostream>
+#include <thread>
 
 namespace Modbus {
 namespace RTU {
 
+
+namespace {
+
+using ByteSeq = Master::ByteSeq;
+using DataSeq  = Master::DataSeq;
+
+constexpr const uint8_t FCODE_RD_HOLDING_REGISTERS = 3;
+constexpr const uint8_t FCODE_WR_REGISTER = 6;
+constexpr const uint8_t FCODE_WR_REGISTERS = 16;
+constexpr const uint8_t FCODE_USER1_OFFSET = 65;
+constexpr const uint8_t FCODE_RD_BYTES = FCODE_USER1_OFFSET + 0;
+constexpr const uint8_t FCODE_WR_BYTES = FCODE_USER1_OFFSET + 1;
+
 const auto gDebug = nullptr != ::getenv("DEBUG");
 
-Master::Master(
-    const char *device,
-    BaudRate baudRate,
-    Parity parity,
-    DataBits dataBits,
-    StopBits stopBits)
+uint8_t lowByte(uint16_t word)
 {
-    context_ =
-        modbus_new_rtu(
-            device,
-            int(baudRate),
-            char(parity),
-            int(dataBits),
-            int(stopBits));
-
-    ENSURE(context_, ModbusRuntimeError);
-    ENSURE(0 == modbus_rtu_set_rts(context_, MODBUS_RTU_RTS_NONE), ModbusRuntimeError);
-    ENSURE(0 == modbus_set_debug(context_, gDebug), ModbusRuntimeError);
-    /* no inter-character delay required */
-    modbus_set_byte_timeout(context_, 0, 0);
-    modbus_set_error_recovery(context_, MODBUS_ERROR_RECOVERY_LINK);
-    ENSURE(0 == modbus_connect(context_), ModbusRuntimeError);
+    return word & 0xFF;
 }
 
-Master::~Master()
+uint8_t highByte(uint16_t word)
 {
-    if(context_)
+    return word >> 8;
+}
+
+void dump(std::ostream &os, const uint8_t *begin, const uint8_t *const end)
+{
+    const auto flags = os.flags();
+
+    while(begin != end)
     {
-        modbus_free(context_);
-        context_ = nullptr;
+        os
+            << '['
+            << std::hex << std::setw(2) << std::setfill('0') << int(*begin)
+            << ']';
+        ++begin;
     }
+    os.flags(flags);
 }
 
-void Master::setup(Addr addr, uSecs timeout)
+void debug(
+    const char *tag,
+    const uint8_t *begin, const uint8_t *const end,
+    const uint8_t *const curr)
 {
-    using namespace std::chrono;
+    if(!gDebug) return;
 
-    ENSURE(microseconds{0} <= timeout, RuntimeError);
-
-    const auto timeout_s = duration_cast<seconds>(timeout);
-    const auto timeout_us = timeout - duration_cast<microseconds>(timeout_s);
-
-    ENSURE(std::numeric_limits<uint32_t>::max() > timeout_s.count(), RuntimeError);
-    ENSURE(1000000 > timeout_us.count(), RuntimeError);
-
-    modbus_set_slave(context_, addr.value);
-    modbus_set_response_timeout(context_, timeout_s.count(), timeout_us.count());
+    if(curr != end)
+    {
+        if(begin == curr) std::cout << "timeout\n";
+        else if(
+            std::distance(begin, curr) == 4 /* addr + fcode + crc */
+            && 0x80 < *std::next(begin))
+        {
+            std::cout
+                << "exception fcode " << int(*std::next(begin)) << "\n";
+        }
+        else if(
+            std::distance(begin, curr) == 5 /* addr + fcode + ecode + crc */
+            && 0x80 < *std::next(begin))
+        {
+            std::cout
+                << "exception fcode " << int(*std::next(begin))
+                << " ecode " << int(*std::next(begin, 2)) << "\n";
+        }
+        else std::cout << "unsupported (partial reply?)\n";
+    }
+    dump(std::cout, begin, end);
+    std::cout << " " << tag << std::endl;
 }
 
-auto Master::rd_n16(uint16_t addr, uint8_t count) -> DataSeq
+ByteSeq &append(ByteSeq &seq, uint16_t word)
+{
+    seq.push_back(highByte(word));
+    seq.push_back(lowByte(word));
+    return seq;
+}
+
+ByteSeq toByteSeq(const DataSeq &dataSeq)
+{
+    ByteSeq byteSeq;
+
+    for(auto data : dataSeq) append(byteSeq, data);
+    return byteSeq;
+}
+
+DataSeq toDataSeq(const ByteSeq &byteSeq)
+{
+    ENSURE(0u == (byteSeq.size() & 1), RuntimeError);
+    DataSeq dataSeq;
+
+    for(auto i = std::begin(byteSeq); i != std::end(byteSeq);)
+    {
+        const uint16_t highByte = *i++;
+        const uint16_t lowByte = *i++;
+        dataSeq.push_back((highByte << 8) | lowByte);
+    }
+    return dataSeq;
+}
+
+void append(ByteSeq &dst, const ByteSeq &src)
+{
+    dst.insert(std::end(dst), std::begin(src), std::end(src));
+}
+
+void append(ByteSeq &dst, const DataSeq &src)
+{
+    append(dst, toByteSeq(src));
+}
+
+ByteSeq &appendCRC(ByteSeq &seq)
+{
+    auto begin = seq.data();
+    auto end = begin + seq.size();
+    auto crc = calcCRC(begin, end);
+
+    seq.push_back(highByte(crc.value));
+    seq.push_back(lowByte(crc.value));
+    return seq;
+}
+
+void validateCRC(const ByteSeq &seq)
+{
+    if(seq.empty()) return;
+
+    ENSURE(2u < seq.size(), RuntimeError);
+
+    auto begin = seq.data();
+    auto end = begin + seq.size();
+    auto crc = calcCRC(begin, std::next(begin, seq.size() - 2));
+
+    ENSURE(lowByte(crc.value) == *seq.rbegin(), RuntimeError);
+    ENSURE(highByte(crc.value) == *++seq.rbegin(), RuntimeError);
+}
+
+} /* namespace */
+
+void Master::wrRegister(
+    Addr slaveAddr,
+    uint16_t memAddr,
+    uint16_t data,
+    mSecs timeout)
+{
+    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
+
+    ByteSeq req
+    {
+        slaveAddr.value,
+        FCODE_WR_REGISTER,
+        highByte(memAddr),
+        lowByte(memAddr),
+        highByte(data),
+        lowByte(data)
+    };
+
+    const auto reqSize = req.size();
+
+    appendCRC(req);
+
+    // request
+    {
+        const auto reqBegin = req.data();
+        const auto reqEnd = reqBegin + req.size();
+        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
+
+        debug(__PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        ENSURE(reqEnd == r, RuntimeError);
+    }
+
+    ByteSeq rep(reqSize + sizeof(CRC), 0);
+
+    // reply
+    {
+        const auto repBegin = rep.data();
+        const auto repEnd = repBegin + rep.size();
+        const auto r = dev.read(repBegin, repEnd, timeout);
+
+        debug(__PRETTY_FUNCTION__, repBegin, repEnd, r);
+        ENSURE(repEnd == r, RuntimeError);
+    }
+
+    validateCRC(rep);
+    ENSURE(
+        std::equal(
+            std::begin(rep), std::next(std::begin(rep), rep.size() - sizeof(CRC)),
+            std::begin(req)),
+        RuntimeError);
+}
+
+void Master::wrRegisters(
+    Addr slaveAddr,
+    uint16_t memAddr,
+    const DataSeq &dataSeq,
+    mSecs timeout)
+{
+    if(dataSeq.empty()) return;
+
+    ENSURE(0x7C > dataSeq.size(), RuntimeError);
+
+    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
+
+    ByteSeq req
+    {
+        slaveAddr.value,
+        FCODE_WR_REGISTERS,
+        highByte(memAddr), lowByte(memAddr), /* starting address */
+        highByte(dataSeq.size()), lowByte(dataSeq.size()), /* quantity of registers */
+        uint8_t(dataSeq.size() << 1) /* byte_count */
+    };
+
+    append(req, dataSeq);
+    appendCRC(req);
+
+    // request
+    {
+        const auto reqBegin = req.data();
+        const auto reqEnd = reqBegin + req.size();
+        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
+
+        debug(__PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        ENSURE(reqEnd == r, RuntimeError);
+    }
+
+    ByteSeq rep(
+        1 /* addr */
+        + 1 /* fcode */
+        + 2 /* starting address */
+        + 2 /* quantity of registers */
+        + sizeof(CRC), 0);
+
+    // reply
+    {
+        const auto repBegin = rep.data();
+        const auto repEnd = repBegin + rep.size();
+        const auto r = dev.read(repBegin, repEnd, timeout);
+
+        debug(__PRETTY_FUNCTION__, repBegin, repEnd, r);
+        ENSURE(repEnd == r, RuntimeError);
+    }
+
+    validateCRC(rep);
+    ENSURE(
+        std::equal(
+            std::begin(rep), std::next(std::begin(rep), rep.size() - sizeof(CRC)),
+            std::begin(req)),
+        RuntimeError);
+}
+
+DataSeq Master::rdRegisters(
+    Addr slaveAddr,
+    uint16_t memAddr,
+    uint8_t count,
+    mSecs timeout)
 {
     ENSURE(0 < count, RuntimeError);
     ENSURE(0x7E > count, RuntimeError);
 
-    std::vector<uint16_t> data(count, 0);
+    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
 
-    ENSURE(
-        count == modbus_read_registers(context_, addr, count, data.data()),
-        ModbusRuntimeError);
-    return data;
+    ByteSeq req
+    {
+        slaveAddr.value,
+        FCODE_RD_HOLDING_REGISTERS,
+        highByte(memAddr),
+        lowByte(memAddr),
+        highByte(count),
+        lowByte(count)
+    };
+
+    appendCRC(req);
+
+    // request
+    {
+        const auto reqBegin = req.data();
+        const auto reqEnd = reqBegin + req.size();
+        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
+
+        debug(__PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        ENSURE(reqEnd == r, RuntimeError);
+    }
+
+    dev.drain();
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    constexpr const auto repHeaderSize = 1 /* slave */ + 1 /* fcode */ + 1 /* byte count */;
+    const auto repSize = repHeaderSize + (count << 1)  /* data[] */ + sizeof(CRC);
+    ByteSeq rep(repSize, 0);
+
+    // reply
+    {
+        const auto repBegin = rep.data();
+        const auto repEnd = repBegin + rep.size();
+        const auto r = dev.read(repBegin, repEnd, timeout);
+
+        debug(__PRETTY_FUNCTION__, repBegin, repEnd, r);
+        ENSURE(repEnd == r, RuntimeError);
+    }
+
+    validateCRC(rep);
+    ENSURE(rep[0] == slaveAddr.value, RuntimeError);
+    ENSURE(rep[1] == FCODE_RD_HOLDING_REGISTERS, RuntimeError);
+
+    auto dataSeq =
+        toDataSeq(
+            ByteSeq
+            {
+                std::next(std::begin(rep), repHeaderSize),
+                std::end(rep)
+            });
+    return dataSeq;
 }
 
-void Master::wr16(uint16_t addr, uint16_t data)
+void Master::wrBytes(
+    Addr slaveAddr,
+    uint16_t memAddr,
+    const ByteSeq &byteSeq,
+    mSecs timeout)
 {
-    ENSURE(
-        1 == modbus_write_register(context_, addr, data),
-        ModbusRuntimeError);
-}
+    if(byteSeq.empty()) return;
 
-void Master::wr_n16(uint16_t addr, const std::vector<uint16_t> &data)
-{
-    if(data.empty()) return;
+    ENSURE(250u > byteSeq.size(), RuntimeError);
 
+    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
+
+    ByteSeq req
+    {
+        slaveAddr.value,
+        FCODE_WR_BYTES,
+        highByte(memAddr),
+        lowByte(memAddr),
+        uint8_t(byteSeq.size())
+    };
+
+    const auto reqSize = req.size();
+
+    append(req, byteSeq);
+    appendCRC(req);
+
+    // request
+    {
+        auto reqBegin = req.data();
+        auto reqEnd = reqBegin + req.size();
+
+        ENSURE(reqEnd == dev.write(reqBegin, reqEnd, mSecs{0}), RuntimeError);
+    }
+
+    ByteSeq rep(reqSize + sizeof(CRC), 0);
+
+    // reply
+    {
+        auto repBegin = rep.data();
+        auto repEnd = repBegin + rep.size();
+
+        ENSURE(repEnd == dev.read(repBegin, repEnd, timeout), RuntimeError);
+    }
+
+    validateCRC(rep);
     ENSURE(
-        int(data.size()) == modbus_write_registers(context_, addr, data.size(), data.data()),
-        ModbusRuntimeError);
+        std::equal(
+            std::begin(rep), std::next(std::begin(rep), rep.size() - sizeof(CRC)),
+            std::begin(req)),
+        RuntimeError);
 }
 
 } /* RTU */
