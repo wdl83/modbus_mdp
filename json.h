@@ -13,6 +13,8 @@ using json = nlohmann::json;
 json rdRegisters(Master &master, Addr slave, mSecs timeout, const json &input);
 json wrRegister(Master &master, Addr slave, mSecs timeout, const json &input);
 json wrRegisters(Master &master, Addr slave, mSecs timeout, const json &input);
+json wrBytes(Master &master, Addr slave, mSecs timeout, const json &input);
+json rdBytes(Master &master, Addr slave, mSecs timeout, const json &input);
 void dispatch(Master &master, const json &input, json &output);
 
 } /* JSON */

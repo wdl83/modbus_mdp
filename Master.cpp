@@ -149,7 +149,7 @@ void validateCRC(const ByteSeq &seq)
     ENSURE(2u < seq.size(), RuntimeError);
 
     auto begin = seq.data();
-    auto end = begin + seq.size();
+    //auto end = begin + seq.size();
     auto crc = calcCRC(begin, std::next(begin, seq.size() - 2));
 
     ENSURE(lowByte(crc.value) == *seq.rbegin(), RuntimeError);
@@ -365,7 +365,7 @@ void Master::wrBytes(
         const auto reqEnd = reqBegin + req.size();
         const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
@@ -388,6 +388,75 @@ void Master::wrBytes(
             std::begin(req)),
         RuntimeError);
 }
+
+ByteSeq Master::rdBytes(
+    Addr slaveAddr,
+    uint16_t memAddr,
+    uint8_t count,
+    mSecs timeout)
+{
+    ENSURE(0 < count, RuntimeError);
+    ENSURE(250 > count, RuntimeError);
+
+    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
+
+    ByteSeq req
+    {
+        slaveAddr.value,
+        FCODE_RD_BYTES,
+        highByte(memAddr),
+        lowByte(memAddr),
+        uint8_t(count)
+    };
+
+    const auto reqHeaderSize = req.size();
+
+    appendCRC(req);
+
+    // request
+    {
+        const auto reqBegin = req.data();
+        const auto reqEnd = reqBegin + req.size();
+        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
+
+        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        ENSURE(reqEnd == r, RuntimeError);
+    }
+
+    dev.drain();
+
+    const auto repHeaderSize = reqHeaderSize;
+    const auto repSize = repHeaderSize + count  /* data[] */ + sizeof(CRC);
+    ByteSeq rep(repSize, 0);
+
+    // reply
+    {
+        const auto repBegin = rep.data();
+        const auto repEnd = repBegin + rep.size();
+        const auto r = dev.read(repBegin, repEnd, timeout);
+
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
+        ENSURE(repEnd == r, RuntimeError);
+    }
+
+    validateCRC(rep);
+
+    ENSURE(
+        std::equal(
+            std::begin(rep), std::next(std::begin(rep), repHeaderSize),
+            std::begin(req)),
+        RuntimeError);
+
+    ByteSeq dataSeq
+    {
+        std::next(std::begin(rep), repHeaderSize),
+        std::next(std::begin(rep), rep.size() - sizeof(CRC))
+    };
+
+    return dataSeq;
+}
+
+
 
 } /* RTU */
 } /* Modbus */

@@ -53,6 +53,7 @@ public:
     void wrRegisters(Addr slaveAddr, uint16_t memAddr, const DataSeq &data, mSecs timeout);
     DataSeq rdRegisters(Addr slaveAddr, uint16_t memAddr, uint8_t count, mSecs timeout);
     void wrBytes(Addr slaveAddr, uint16_t memAddr, const ByteSeq &data, mSecs timeout);
+    ByteSeq rdBytes(Addr slaveAddr, uint16_t memAddr, uint8_t count, mSecs timeout);
 };
 
 } /* RTU */
