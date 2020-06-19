@@ -21,7 +21,10 @@ constexpr const uint8_t FCODE_USER1_OFFSET = 65;
 constexpr const uint8_t FCODE_RD_BYTES = FCODE_USER1_OFFSET + 0;
 constexpr const uint8_t FCODE_WR_BYTES = FCODE_USER1_OFFSET + 1;
 
-const auto gDebug = nullptr != ::getenv("DEBUG");
+const int gDebug =
+    ::getenv("DEBUG")
+    ? ::atoi(getenv("DEBUG"))
+    : 0;
 
 uint8_t lowByte(uint16_t word)
 {
@@ -48,12 +51,21 @@ void dump(std::ostream &os, const uint8_t *begin, const uint8_t *const end)
     os.flags(flags);
 }
 
+enum class DataSource
+{
+    Master, Slave
+};
+
 void debug(
+    DataSource dataSource,
     const char *tag,
     const uint8_t *begin, const uint8_t *const end,
     const uint8_t *const curr)
 {
     if(!gDebug) return;
+
+    if(DataSource::Master == dataSource) std::cout << ">";
+    else if(DataSource::Slave == dataSource) std::cout << "<";
 
     if(curr != end)
     {
@@ -76,7 +88,8 @@ void debug(
         else std::cout << "unsupported (partial reply?)\n";
     }
     dump(std::cout, begin, end);
-    std::cout << " " << tag << std::endl;
+    if(1 < gDebug) std::cout << " " << tag;
+    std::cout << std::endl;
 }
 
 ByteSeq &append(ByteSeq &seq, uint16_t word)
@@ -173,7 +186,7 @@ void Master::wrRegister(
         const auto reqEnd = reqBegin + req.size();
         const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        debug(__PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
@@ -185,7 +198,7 @@ void Master::wrRegister(
         const auto repEnd = repBegin + rep.size();
         const auto r = dev.read(repBegin, repEnd, timeout);
 
-        debug(__PRETTY_FUNCTION__, repBegin, repEnd, r);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
         ENSURE(repEnd == r, RuntimeError);
     }
 
@@ -227,7 +240,7 @@ void Master::wrRegisters(
         const auto reqEnd = reqBegin + req.size();
         const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        debug(__PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
@@ -244,7 +257,7 @@ void Master::wrRegisters(
         const auto repEnd = repBegin + rep.size();
         const auto r = dev.read(repBegin, repEnd, timeout);
 
-        debug(__PRETTY_FUNCTION__, repBegin, repEnd, r);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
         ENSURE(repEnd == r, RuntimeError);
     }
 
@@ -285,7 +298,7 @@ DataSeq Master::rdRegisters(
         const auto reqEnd = reqBegin + req.size();
         const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        debug(__PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
@@ -302,7 +315,7 @@ DataSeq Master::rdRegisters(
         const auto repEnd = repBegin + rep.size();
         const auto r = dev.read(repBegin, repEnd, timeout);
 
-        debug(__PRETTY_FUNCTION__, repBegin, repEnd, r);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
         ENSURE(repEnd == r, RuntimeError);
     }
 
@@ -315,7 +328,7 @@ DataSeq Master::rdRegisters(
             ByteSeq
             {
                 std::next(std::begin(rep), repHeaderSize),
-                std::end(rep)
+                std::next(std::begin(rep), rep.size() - sizeof(CRC))
             });
     return dataSeq;
 }
@@ -348,20 +361,24 @@ void Master::wrBytes(
 
     // request
     {
-        auto reqBegin = req.data();
-        auto reqEnd = reqBegin + req.size();
+        const auto reqBegin = req.data();
+        const auto reqEnd = reqBegin + req.size();
+        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        ENSURE(reqEnd == dev.write(reqBegin, reqEnd, mSecs{0}), RuntimeError);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        ENSURE(reqEnd == r, RuntimeError);
     }
 
     ByteSeq rep(reqSize + sizeof(CRC), 0);
 
     // reply
     {
-        auto repBegin = rep.data();
-        auto repEnd = repBegin + rep.size();
+        const auto repBegin = rep.data();
+        const auto repEnd = repBegin + rep.size();
+        const auto r = dev.read(repBegin, repEnd, timeout);
 
-        ENSURE(repEnd == dev.read(repBegin, repEnd, timeout), RuntimeError);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
+        ENSURE(repEnd == r, RuntimeError);
     }
 
     validateCRC(rep);

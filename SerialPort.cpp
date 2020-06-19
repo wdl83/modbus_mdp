@@ -13,7 +13,7 @@
 
 namespace {
 
-const auto gDebug = nullptr != ::getenv("DEBUG");
+const auto gDebug = nullptr != ::getenv("DEBUG_SERIAL");
 
 void validateSysCallResult(int r)
 {
