@@ -66,8 +66,8 @@ int main(int argc, char *argv[])
 
         for(const auto &i : input) Modbus::RTU::JSON::dispatch(master, i, output);
 
-        if(oname.empty()) std::cout /*<< std::setw(2)*/ << output;
-        else std::ofstream{oname} << std::setw(2) << output;
+        if(oname.empty()) std::cout << output;
+        else std::ofstream{oname} << output;
     }
     catch(const std::exception &except)
     {
