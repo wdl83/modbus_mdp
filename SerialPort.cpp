@@ -43,8 +43,12 @@ void debug(
 {
     if(!gDebug) return;
 
+    const auto timeout = curr != end;
+
     dump(std::cout, begin, end);
-    std::cout << " " << tag << (curr != end ? " TIMEOUT " : " ") << std::endl;
+    std::cout << " " << tag;
+    if(timeout) std::cout << " TIMEOUT, length " << curr - begin;
+    std::cout << std::endl;
 }
 
 } /* namespace */
