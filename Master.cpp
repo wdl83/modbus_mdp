@@ -303,7 +303,6 @@ DataSeq Master::rdRegisters(
     }
 
     dev.drain();
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     constexpr const auto repHeaderSize = 1 /* slave */ + 1 /* fcode */ + 1 /* byte count */;
     const auto repSize = repHeaderSize + (count << 1)  /* data[] */ + sizeof(CRC);
