@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 {
     std::string device, iname, oname;
 
-    for(char c; -1 != (c = ::getopt(argc, argv, "hd:i:o:"));)
+    for(int c; -1 != (c = ::getopt(argc, argv, "hd:i:o:"));)
     {
         switch(c)
         {

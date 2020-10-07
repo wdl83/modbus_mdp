@@ -18,7 +18,7 @@ int main(int argc, char *const argv[])
 {
     std::string address, device;
 
-    for(char c; -1 != (c = ::getopt(argc, argv, "ha:d:"));)
+    for(int c; -1 != (c = ::getopt(argc, argv, "ha:d:"));)
     {
         switch(c)
         {
