@@ -59,6 +59,7 @@ enum class DataSource
 void debug(
     DataSource dataSource,
     const char *tag,
+    int line,
     const uint8_t *begin, const uint8_t *const end,
     const uint8_t *const curr)
 {
@@ -88,7 +89,7 @@ void debug(
         else std::cout << "unsupported (partial reply?)\n";
     }
     dump(std::cout, begin, end);
-    if(1 < gDebug) std::cout << " " << tag;
+    if(1 < gDebug) std::cout << " " << line << " " << tag;
     std::cout << std::endl;
 }
 
@@ -186,7 +187,7 @@ void Master::wrRegister(
         const auto reqEnd = reqBegin + req.size();
         const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
@@ -198,7 +199,7 @@ void Master::wrRegister(
         const auto repEnd = repBegin + rep.size();
         const auto r = dev.read(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repEnd == r, RuntimeError);
     }
 
@@ -240,7 +241,7 @@ void Master::wrRegisters(
         const auto reqEnd = reqBegin + req.size();
         const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
@@ -257,7 +258,7 @@ void Master::wrRegisters(
         const auto repEnd = repBegin + rep.size();
         const auto r = dev.read(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repEnd == r, RuntimeError);
     }
 
@@ -298,7 +299,7 @@ DataSeq Master::rdRegisters(
         const auto reqEnd = reqBegin + req.size();
         const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
@@ -314,7 +315,7 @@ DataSeq Master::rdRegisters(
         const auto repEnd = repBegin + rep.size();
         const auto r = dev.read(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repEnd == r, RuntimeError);
     }
 
@@ -364,7 +365,7 @@ void Master::wrBytes(
         const auto reqEnd = reqBegin + req.size();
         const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
@@ -376,7 +377,7 @@ void Master::wrBytes(
         const auto repEnd = repBegin + rep.size();
         const auto r = dev.read(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repEnd == r, RuntimeError);
     }
 
@@ -418,7 +419,7 @@ ByteSeq Master::rdBytes(
         const auto reqEnd = reqBegin + req.size();
         const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, reqBegin, reqEnd, r);
+        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
@@ -434,7 +435,7 @@ ByteSeq Master::rdBytes(
         const auto repEnd = repBegin + rep.size();
         const auto r = dev.read(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, repBegin, repEnd, r);
+        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repEnd == r, RuntimeError);
     }
 
