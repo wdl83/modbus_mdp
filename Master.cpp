@@ -200,7 +200,7 @@ void Master::wrRegister(
         const auto r = dev.read(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repEnd == r, RuntimeError);
+        ENSURE(repBegin != r, TimeoutError);
     }
 
     validateCRC(rep);
@@ -259,7 +259,7 @@ void Master::wrRegisters(
         const auto r = dev.read(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repEnd == r, RuntimeError);
+        ENSURE(repBegin != r, TimeoutError);
     }
 
     validateCRC(rep);
@@ -316,7 +316,7 @@ DataSeq Master::rdRegisters(
         const auto r = dev.read(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repEnd == r, RuntimeError);
+        ENSURE(repBegin != r, TimeoutError);
     }
 
     validateCRC(rep);
@@ -378,7 +378,7 @@ void Master::wrBytes(
         const auto r = dev.read(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repEnd == r, RuntimeError);
+        ENSURE(repBegin != r, TimeoutError);
     }
 
     validateCRC(rep);
@@ -436,7 +436,7 @@ ByteSeq Master::rdBytes(
         const auto r = dev.read(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repEnd == r, RuntimeError);
+        ENSURE(repBegin != r, TimeoutError);
     }
 
     validateCRC(rep);

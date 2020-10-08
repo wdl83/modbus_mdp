@@ -15,6 +15,10 @@ namespace RTU {
 struct Addr
 {
     uint8_t value;
+
+    static constexpr uint8_t min = 1;
+    static constexpr uint8_t max = 255;
+
     Addr(uint8_t addr): value{addr}
     {}
 };
