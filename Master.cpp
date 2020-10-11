@@ -36,16 +36,21 @@ uint8_t highByte(uint16_t word)
     return word >> 8;
 }
 
+void dump(std::ostream &os, uint8_t data)
+{
+    os
+        << '['
+        << std::hex << std::setw(2) << std::setfill('0') << int(data)
+        << ']';
+}
+
 void dump(std::ostream &os, const uint8_t *begin, const uint8_t *const end)
 {
     const auto flags = os.flags();
 
     while(begin != end)
     {
-        os
-            << '['
-            << std::hex << std::setw(2) << std::setfill('0') << int(*begin)
-            << ']';
+        dump(os, *begin);
         ++begin;
     }
     os.flags(flags);
@@ -138,8 +143,8 @@ ByteSeq &appendCRC(ByteSeq &seq)
     auto end = begin + seq.size();
     auto crc = calcCRC(begin, end);
 
-    seq.push_back(highByte(crc.value));
-    seq.push_back(lowByte(crc.value));
+    seq.push_back(crc.lowByte());
+    seq.push_back(crc.highByte());
     return seq;
 }
 
@@ -149,15 +154,100 @@ void validateCRC(const ByteSeq &seq)
 
     ENSURE(2u < seq.size(), RuntimeError);
 
-    auto begin = seq.data();
-    //auto end = begin + seq.size();
-    auto crc = calcCRC(begin, std::next(begin, seq.size() - 2));
+    const CRC recvValue{*seq.rbegin(), *std::next(seq.rbegin())};
 
-    ENSURE(lowByte(crc.value) == *seq.rbegin(), RuntimeError);
-    ENSURE(highByte(crc.value) == *++seq.rbegin(), RuntimeError);
+    const auto begin = seq.data();
+    auto calcValue = calcCRC(begin, std::next(begin, seq.size() - 2));
+
+    if(gDebug)
+    {
+        const auto flags = std::cout.flags();
+        std::cout << "rCRC ";
+        dump(std::cout, recvValue.highByte());
+        dump(std::cout, recvValue.lowByte());
+        std::cout << "cCRC ";
+        dump(std::cout, calcValue.highByte());
+        dump(std::cout, calcValue.lowByte());
+        std::cout << "\n";
+        std::cout.flags(flags);
+    }
+
+    ENSURE(recvValue.value == calcValue.value, RuntimeError);
 }
 
 } /* namespace */
+
+void Master::initDevice()
+{
+    if(dev_) return;
+
+    dev_ =
+        std::make_unique<SerialPort>(devName_, baudRate_, parity_, dataBits_, stopBits_);
+    ENSURE(dev_, RuntimeError);
+}
+
+void Master::drainDevice()
+{
+    initDevice();
+    try
+    {
+        dev_->drain();
+    }
+    catch(CRuntimeError &except)
+    {
+        dev_.reset();
+        throw;
+    }
+    catch(RuntimeError &exept)
+    {
+        dev_.reset();
+        throw;
+    }
+}
+
+uint8_t *Master::readDevice(uint8_t *begin, const uint8_t *const end, mSecs timeout)
+{
+    initDevice();
+    try
+    {
+        return dev_->read(begin, end, timeout);
+    }
+    catch(CRuntimeError &except)
+    {
+        dev_.reset();
+        throw;
+    }
+    catch(RuntimeError &exept)
+    {
+        dev_.reset();
+        throw;
+    }
+}
+
+const uint8_t *Master::writeDevice(const uint8_t *begin, const uint8_t *const end, mSecs timeout)
+{
+    initDevice();
+    try
+    {
+        return dev_->write(begin, end, timeout);
+    }
+    catch(CRuntimeError &except)
+    {
+        dev_.reset();
+        throw;
+    }
+    catch(RuntimeError &exept)
+    {
+        dev_.reset();
+        throw;
+    }
+}
+
+SerialPort &Master::device()
+{
+    initDevice();
+    return *dev_;
+}
 
 void Master::wrRegister(
     Addr slaveAddr,
@@ -165,8 +255,6 @@ void Master::wrRegister(
     uint16_t data,
     mSecs timeout)
 {
-    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
-
     ByteSeq req
     {
         slaveAddr.value,
@@ -185,7 +273,7 @@ void Master::wrRegister(
     {
         const auto reqBegin = req.data();
         const auto reqEnd = reqBegin + req.size();
-        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
+        const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
@@ -197,7 +285,7 @@ void Master::wrRegister(
     {
         const auto repBegin = rep.data();
         const auto repEnd = repBegin + rep.size();
-        const auto r = dev.read(repBegin, repEnd, timeout);
+        const auto r = readDevice(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repBegin != r, TimeoutError);
@@ -221,8 +309,6 @@ void Master::wrRegisters(
 
     ENSURE(0x7C > dataSeq.size(), RuntimeError);
 
-    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
-
     ByteSeq req
     {
         slaveAddr.value,
@@ -239,7 +325,7 @@ void Master::wrRegisters(
     {
         const auto reqBegin = req.data();
         const auto reqEnd = reqBegin + req.size();
-        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
+        const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
@@ -256,7 +342,7 @@ void Master::wrRegisters(
     {
         const auto repBegin = rep.data();
         const auto repEnd = repBegin + rep.size();
-        const auto r = dev.read(repBegin, repEnd, timeout);
+        const auto r = readDevice(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repBegin != r, TimeoutError);
@@ -279,8 +365,6 @@ DataSeq Master::rdRegisters(
     ENSURE(0 < count, RuntimeError);
     ENSURE(0x7E > count, RuntimeError);
 
-    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
-
     ByteSeq req
     {
         slaveAddr.value,
@@ -297,13 +381,13 @@ DataSeq Master::rdRegisters(
     {
         const auto reqBegin = req.data();
         const auto reqEnd = reqBegin + req.size();
-        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
+        const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
-    dev.drain();
+    drainDevice();
 
     constexpr const auto repHeaderSize = 1 /* slave */ + 1 /* fcode */ + 1 /* byte count */;
     const auto repSize = repHeaderSize + (count << 1)  /* data[] */ + sizeof(CRC);
@@ -313,7 +397,7 @@ DataSeq Master::rdRegisters(
     {
         const auto repBegin = rep.data();
         const auto repEnd = repBegin + rep.size();
-        const auto r = dev.read(repBegin, repEnd, timeout);
+        const auto r = readDevice(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repBegin != r, TimeoutError);
@@ -343,8 +427,6 @@ void Master::wrBytes(
 
     ENSURE(250u > byteSeq.size(), RuntimeError);
 
-    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
-
     ByteSeq req
     {
         slaveAddr.value,
@@ -363,7 +445,7 @@ void Master::wrBytes(
     {
         const auto reqBegin = req.data();
         const auto reqEnd = reqBegin + req.size();
-        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
+        const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
@@ -375,7 +457,7 @@ void Master::wrBytes(
     {
         const auto repBegin = rep.data();
         const auto repEnd = repBegin + rep.size();
-        const auto r = dev.read(repBegin, repEnd, timeout);
+        const auto r = readDevice(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repBegin != r, TimeoutError);
@@ -398,8 +480,6 @@ ByteSeq Master::rdBytes(
     ENSURE(0 < count, RuntimeError);
     ENSURE(250 > count, RuntimeError);
 
-    SerialPort dev{devName_, baudRate_, parity_, dataBits_, stopBits_};
-
     ByteSeq req
     {
         slaveAddr.value,
@@ -417,13 +497,13 @@ ByteSeq Master::rdBytes(
     {
         const auto reqBegin = req.data();
         const auto reqEnd = reqBegin + req.size();
-        const auto r = dev.write(reqBegin, reqEnd, mSecs{0});
+        const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         ENSURE(reqEnd == r, RuntimeError);
     }
 
-    dev.drain();
+    drainDevice();
 
     const auto repHeaderSize = reqHeaderSize;
     const auto repSize = repHeaderSize + count  /* data[] */ + sizeof(CRC);
@@ -433,7 +513,7 @@ ByteSeq Master::rdBytes(
     {
         const auto repBegin = rep.data();
         const auto repEnd = repBegin + rep.size();
-        const auto r = dev.read(repBegin, repEnd, timeout);
+        const auto r = readDevice(repBegin, repEnd, timeout);
 
         debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
         ENSURE(repBegin != r, TimeoutError);

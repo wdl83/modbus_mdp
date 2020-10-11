@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <thread>
 
 #include "Ensure.h"
 #include "Master.h"
@@ -64,7 +65,12 @@ int main(int argc, char *argv[])
 
         Modbus::RTU::Master master{device.c_str()};
 
-        for(const auto &i : input) Modbus::RTU::JSON::dispatch(master, i, output);
+        for(const auto &i : input)
+        {
+            Modbus::RTU::JSON::dispatch(master, i, output);
+            /* (silent interval) at least 3.5t character delay ~ 1750us @ 19200bps */
+            std::this_thread::sleep_for(std::chrono::microseconds(1750));
+        }
 
         if(oname.empty()) std::cout << output;
         else std::ofstream{oname} << output;

@@ -33,8 +33,12 @@ private:
     Parity parity_;
     DataBits dataBits_;
     StopBits stopBits_;
-    int fd_;
+    int fd_{-1};
     std::unique_ptr<struct termios> settings_;
+    uint64_t rxCntr_{0};
+    uint64_t txCntr_{0};
+    uint64_t rxTotalCntr_{0};
+    uint64_t txTotalCntr_{0};
 public:
     SerialPort(std::string devName, BaudRate, Parity, DataBits, StopBits);
     ~SerialPort();
@@ -42,6 +46,18 @@ public:
     const uint8_t *write(const uint8_t *begin, const uint8_t *const end, mSecs timeout);
     /* wait until data written is transmitted */
     void drain();
+
+    uint64_t rxCntr() const {return rxCntr_;}
+    uint64_t txCntr() const {return txCntr_;}
+
+    void clearCntrs()
+    {
+        rxCntr_ = 0;
+        txCntr_ = 0;
+    }
+
+    uint64_t rxTotalCntr() const {return rxTotalCntr_;}
+    uint64_t txTotalCntr() const {return txTotalCntr_;}
 };
 
 } /* Modbus */

@@ -65,8 +65,7 @@ SerialPort::SerialPort(
         baudRate_{baudRate},
         parity_{parity},
         dataBits_{dataBits},
-        stopBits_{stopBits},
-        fd_{-1}
+        stopBits_{stopBits}
 {
     ENSURE(-1 == fd_, RuntimeError);
     ENSURE(!devName_.empty(), RuntimeError);
@@ -98,6 +97,7 @@ SerialPort::SerialPort(
         else
         {
             settings.c_iflag |= INPCK;
+            //settings.c_iflag &= ~IGNPAR;
             settings.c_cflag |= PARENB;
 
             if(Parity::Odd == parity_) settings.c_cflag |= PARODD;
@@ -144,12 +144,15 @@ SerialPort::SerialPort(
     }
 
     ENSURE(-1 != ::tcsetattr(fd_, TCSANOW, &settings), CRuntimeError);
+    /* flush in/out buffers */
+    ENSURE(-1 != ::tcflush(fd_, TCIOFLUSH), CRuntimeError);
 }
 
 SerialPort::~SerialPort()
 {
     if(-1 != fd_ && settings_)
     {
+        (void)::tcflush(fd_, TCIOFLUSH);
         (void)::tcsetattr(fd_, TCSANOW, settings_.get());
         (void)::close(fd_);
     }
@@ -191,6 +194,8 @@ uint8_t *SerialPort::read(uint8_t *begin, const uint8_t *const end, mSecs timeou
             validateSysCallResult(r);
             ENSURE(0 != r, RuntimeError);
             std::advance(curr, r);
+            rxCntr_ += r;
+            rxTotalCntr_ += r;
         }
     }
 
@@ -234,6 +239,8 @@ const uint8_t *SerialPort::write(const uint8_t *begin, const uint8_t *const end,
             validateSysCallResult(r);
             ENSURE(0 != r, RuntimeError);
             std::advance(curr, r);
+            txCntr_ += r;
+            txTotalCntr_ += r;
         }
     }
 

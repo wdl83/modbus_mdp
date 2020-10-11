@@ -73,16 +73,17 @@ namespace RTU {
 
 CRC calcCRC(const uint8_t *begin, const uint8_t *end)
 {
+    /* MODBUS over Serial Line Specification and Implementation Guide V1.02 */
     if(!begin || !end) return {0xFFFF};
 
-    uint8_t high = 0xFF;
     uint8_t low = 0xFF;
+    uint8_t high = 0xFF;
 
     while(begin != end)
     {
-        uint8_t i = high ^ (*begin);
-        high = low ^ hCRC16_[i];
-        low = lCRC16_[i];
+        uint8_t i = low ^ (*begin);
+        low = high ^ hCRC16_[i];
+        high = lCRC16_[i];
         ++begin;
     }
 

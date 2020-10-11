@@ -39,6 +39,12 @@ private:
     Parity parity_;
     DataBits dataBits_;
     StopBits stopBits_;
+    std::unique_ptr<SerialPort> dev_;
+
+    void initDevice();
+    void drainDevice();
+    uint8_t *readDevice(uint8_t *begin, const uint8_t *const end, mSecs timeout);
+    const uint8_t *writeDevice(const uint8_t *begin, const uint8_t *const end, mSecs timeout);
 public:
     Master(
         std::string devName,
@@ -53,6 +59,7 @@ public:
             stopBits_{stopBits}
     {}
 
+    SerialPort &device();
     void wrRegister(Addr slaveAddr, uint16_t memAddr, uint16_t data, mSecs timeout);
     void wrRegisters(Addr slaveAddr, uint16_t memAddr, const DataSeq &data, mSecs timeout);
     DataSeq rdRegisters(Addr slaveAddr, uint16_t memAddr, uint8_t count, mSecs timeout);
