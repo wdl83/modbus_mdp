@@ -15,7 +15,7 @@ void help(const char *argv0, const char *message = nullptr)
 
     std::cout
         << argv0
-        << " -d device - input.json [-o output.json]"
+        << " -d device -i input.json|- [-o output.json]"
         << std::endl;
 }
 
@@ -59,7 +59,8 @@ int main(int argc, char *argv[])
     {
         Modbus::RTU::JSON::json input, output;
 
-        std::ifstream(iname) >> input;
+        if("-" == iname) std::cin >> input;
+        else std::ifstream(iname) >> input;
 
         ENSURE(input.is_array(), RuntimeError);
 
