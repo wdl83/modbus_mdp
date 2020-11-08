@@ -132,7 +132,8 @@ int main(int argc, char *argv[])
     {
         Modbus::RTU::JSON::json input;
 
-        std::ifstream(iname) >> input;
+        if("-" == iname) std::cin >> input;
+        else std::ifstream(iname) >> input;
 
         ENSURE(input.is_array(), RuntimeError);
 

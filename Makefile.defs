@@ -1,6 +1,7 @@
 CC=clang
 
 FLAGS = \
+	-DENABLE_TRACE \
 	-Os \
 	-Wall \
 	-Wextra \
@@ -12,7 +13,6 @@ FLAGS = \
 
 ifndef RELEASE
 	FLAGS +=  \
-		-DENABLE_TRACE \
 		-fsanitize=address
 endif
 
