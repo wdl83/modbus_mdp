@@ -61,41 +61,46 @@ enum class DataSource
     Master, Slave
 };
 
-void debug(
+std::string dump(
     DataSource dataSource,
     const char *tag,
     int line,
     const uint8_t *begin, const uint8_t *const end,
     const uint8_t *const curr)
 {
-    if(!gDebug) return;
+    std::ostringstream oss;
 
-    if(DataSource::Master == dataSource) std::cout << ">";
-    else if(DataSource::Slave == dataSource) std::cout << "<";
+    if(DataSource::Master == dataSource) oss << ">";
+    else if(DataSource::Slave == dataSource) oss << "<";
 
     if(curr != end)
     {
-        if(begin == curr) std::cout << "timeout\n";
+        if(begin == curr) oss << "timeout\n";
         else if(
             std::distance(begin, curr) == 4 /* addr + fcode + crc */
             && 0x80 < *std::next(begin))
         {
-            std::cout
+            oss
                 << "exception fcode " << int(*std::next(begin)) << "\n";
         }
         else if(
             std::distance(begin, curr) == 5 /* addr + fcode + ecode + crc */
             && 0x80 < *std::next(begin))
         {
-            std::cout
+            oss
                 << "exception fcode " << int(*std::next(begin))
                 << " ecode " << int(*std::next(begin, 2)) << "\n";
         }
-        else std::cout << "unsupported (partial reply?)\n";
+        else oss << "unsupported (partial reply?)\n";
     }
-    dump(std::cout, begin, end);
-    if(1 < gDebug) std::cout << " " << line << " " << tag;
-    std::cout << std::endl;
+    dump(oss, begin, end);
+    if(1 < gDebug) oss << " " << line << " " << tag;
+    oss << '\n';
+
+    auto str = oss.str();
+
+    if(gDebug) std::cout << str;
+    return str;
 }
 
 ByteSeq &append(ByteSeq &seq, uint16_t word)
@@ -275,8 +280,8 @@ void Master::wrRegister(
         const auto reqEnd = reqBegin + req.size();
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        ENSURE(reqEnd == r, RuntimeError);
+        const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
+        vENSURE(reqEnd == r, RuntimeError, debug);
     }
 
     ByteSeq rep(reqSize + sizeof(CRC), 0);
@@ -287,8 +292,8 @@ void Master::wrRegister(
         const auto repEnd = repBegin + rep.size();
         const auto r = readDevice(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repBegin != r, TimeoutError);
+        const auto debug = dump(DataSource::Slave, __FUNCTION__, __LINE__, repBegin, repEnd, r);
+        vENSURE(repBegin != r, TimeoutError, debug);
     }
 
     validateCRC(rep);
@@ -327,8 +332,8 @@ void Master::wrRegisters(
         const auto reqEnd = reqBegin + req.size();
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        ENSURE(reqEnd == r, RuntimeError);
+        const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
+        vENSURE(reqEnd == r, RuntimeError, debug);
     }
 
     ByteSeq rep(
@@ -344,8 +349,8 @@ void Master::wrRegisters(
         const auto repEnd = repBegin + rep.size();
         const auto r = readDevice(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repBegin != r, TimeoutError);
+        const auto debug = dump(DataSource::Slave, __FUNCTION__, __LINE__, repBegin, repEnd, r);
+        vENSURE(repBegin != r, TimeoutError, debug);
     }
 
     validateCRC(rep);
@@ -383,8 +388,8 @@ DataSeq Master::rdRegisters(
         const auto reqEnd = reqBegin + req.size();
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        ENSURE(reqEnd == r, RuntimeError);
+        const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
+        vENSURE(reqEnd == r, RuntimeError, debug);
     }
 
     drainDevice();
@@ -399,8 +404,8 @@ DataSeq Master::rdRegisters(
         const auto repEnd = repBegin + rep.size();
         const auto r = readDevice(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repBegin != r, TimeoutError);
+        const auto debug = dump(DataSource::Slave, __FUNCTION__, __LINE__, repBegin, repEnd, r);
+        vENSURE(repBegin != r, TimeoutError, debug);
     }
 
     validateCRC(rep);
@@ -447,8 +452,8 @@ void Master::wrBytes(
         const auto reqEnd = reqBegin + req.size();
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        ENSURE(reqEnd == r, RuntimeError);
+        const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
+        vENSURE(reqEnd == r, RuntimeError, debug);
     }
 
     ByteSeq rep(reqSize + sizeof(CRC), 0);
@@ -459,8 +464,8 @@ void Master::wrBytes(
         const auto repEnd = repBegin + rep.size();
         const auto r = readDevice(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repBegin != r, TimeoutError);
+        const auto debug = dump(DataSource::Slave, __FUNCTION__, __LINE__, repBegin, repEnd, r);
+        vENSURE(repBegin != r, TimeoutError, debug);
     }
 
     validateCRC(rep);
@@ -499,8 +504,8 @@ ByteSeq Master::rdBytes(
         const auto reqEnd = reqBegin + req.size();
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
-        debug(DataSource::Master, __PRETTY_FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        ENSURE(reqEnd == r, RuntimeError);
+        const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
+        vENSURE(reqEnd == r, RuntimeError, debug);
     }
 
     drainDevice();
@@ -515,8 +520,8 @@ ByteSeq Master::rdBytes(
         const auto repEnd = repBegin + rep.size();
         const auto r = readDevice(repBegin, repEnd, timeout);
 
-        debug(DataSource::Slave, __PRETTY_FUNCTION__, __LINE__, repBegin, repEnd, r);
-        ENSURE(repBegin != r, TimeoutError);
+        const auto debug = dump(DataSource::Slave, __FUNCTION__, __LINE__, repBegin, repEnd, r);
+        vENSURE(repBegin != r, TimeoutError, debug);
     }
 
     validateCRC(rep);
