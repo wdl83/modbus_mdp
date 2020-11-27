@@ -157,7 +157,7 @@ void validateCRC(const ByteSeq &seq)
 {
     if(seq.empty()) return;
 
-    ENSURE(2u < seq.size(), RuntimeError);
+    ENSURE(2u < seq.size(), CRCError);
 
     const CRC recvValue{*seq.rbegin(), *std::next(seq.rbegin())};
 
@@ -177,7 +177,7 @@ void validateCRC(const ByteSeq &seq)
         std::cout.flags(flags);
     }
 
-    ENSURE(recvValue.value == calcValue.value, RuntimeError);
+    ENSURE(recvValue.value == calcValue.value, CRCError);
 }
 
 } /* namespace */
@@ -281,7 +281,7 @@ void Master::wrRegister(
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        vENSURE(reqEnd == r, RuntimeError, debug);
+        vENSURE(reqEnd == r, RequestError, debug);
     }
 
     ByteSeq rep(reqSize + sizeof(CRC), 0);
@@ -301,7 +301,7 @@ void Master::wrRegister(
         std::equal(
             std::begin(rep), std::next(std::begin(rep), rep.size() - sizeof(CRC)),
             std::begin(req)),
-        RuntimeError);
+        ReplyError);
 }
 
 void Master::wrRegisters(
@@ -333,7 +333,7 @@ void Master::wrRegisters(
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        vENSURE(reqEnd == r, RuntimeError, debug);
+        vENSURE(reqEnd == r, RequestError, debug);
     }
 
     ByteSeq rep(
@@ -358,7 +358,7 @@ void Master::wrRegisters(
         std::equal(
             std::begin(rep), std::next(std::begin(rep), rep.size() - sizeof(CRC)),
             std::begin(req)),
-        RuntimeError);
+        ReplyError);
 }
 
 DataSeq Master::rdRegisters(
@@ -389,7 +389,7 @@ DataSeq Master::rdRegisters(
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        vENSURE(reqEnd == r, RuntimeError, debug);
+        vENSURE(reqEnd == r, RequestError, debug);
     }
 
     drainDevice();
@@ -409,8 +409,8 @@ DataSeq Master::rdRegisters(
     }
 
     validateCRC(rep);
-    ENSURE(rep[0] == slaveAddr.value, RuntimeError);
-    ENSURE(rep[1] == FCODE_RD_HOLDING_REGISTERS, RuntimeError);
+    ENSURE(rep[0] == slaveAddr.value, ReplyError);
+    ENSURE(rep[1] == FCODE_RD_HOLDING_REGISTERS, ReplyError);
 
     auto dataSeq =
         toDataSeq(
@@ -453,7 +453,7 @@ void Master::wrBytes(
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        vENSURE(reqEnd == r, RuntimeError, debug);
+        vENSURE(reqEnd == r, RequestError, debug);
     }
 
     ByteSeq rep(reqSize + sizeof(CRC), 0);
@@ -473,7 +473,7 @@ void Master::wrBytes(
         std::equal(
             std::begin(rep), std::next(std::begin(rep), rep.size() - sizeof(CRC)),
             std::begin(req)),
-        RuntimeError);
+        ReplyError);
 }
 
 ByteSeq Master::rdBytes(
@@ -505,7 +505,7 @@ ByteSeq Master::rdBytes(
         const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
 
         const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
-        vENSURE(reqEnd == r, RuntimeError, debug);
+        vENSURE(reqEnd == r, RequestError, debug);
     }
 
     drainDevice();
@@ -530,7 +530,7 @@ ByteSeq Master::rdBytes(
         std::equal(
             std::begin(rep), std::next(std::begin(rep), repHeaderSize),
             std::begin(req)),
-        RuntimeError);
+        ReplyError);
 
     ByteSeq dataSeq
     {

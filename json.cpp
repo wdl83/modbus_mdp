@@ -1,15 +1,18 @@
 #include "json.h"
 
+#include <thread>
+
 namespace Modbus {
 namespace RTU {
 namespace JSON {
 
-const char *const SLAVE = "slave";
-const char *const FCODE = "fcode";
-const char *const COUNT = "count";
 const char *const ADDR = "addr";
-const char *const VALUE = "value";
+const char *const COUNT = "count";
+const char *const FCODE = "fcode";
+const char *const RETRY = "retry";
+const char *const SLAVE = "slave";
 const char *const TIMEOUT_MS = "timeout_ms";
+const char *const VALUE = "value";
 
 constexpr auto FCODE_RD_HOLDING_REGISTERS = 3;
 constexpr auto FCODE_WR_REGISTER = 6;
@@ -25,23 +28,34 @@ bool inRange(V value)
         && std::numeric_limits<T>::max() >= value;
 }
 
-json rdRegisters(Master &master, Addr slave, mSecs timeout, const json &input)
+json rdRegisters(Master &master, Addr slave, mSecs timeout, const json &input, int retryNum)
 {
-    ENSURE(input.count(ADDR), RuntimeError);
-    ENSURE(input[ADDR].is_number(), RuntimeError);
+    ENSURE(input.count(ADDR), TagMissingError);
+    ENSURE(input[ADDR].is_number(), TagFormatError);
 
     const auto addr = input[ADDR].get<int>();
 
-    ENSURE(inRange<uint16_t>(addr), RuntimeError);
+    ENSURE(inRange<uint16_t>(addr), TagFormatError);
 
-    ENSURE(input.count(COUNT), RuntimeError);
-    ENSURE(input[COUNT].is_number(), RuntimeError);
+    ENSURE(input.count(COUNT), TagMissingError);
+    ENSURE(input[COUNT].is_number(), TagFormatError);
 
     const auto count = input[COUNT].get<int>();
 
-    ENSURE(inRange<uint8_t>(count), RuntimeError);
+    ENSURE(inRange<uint8_t>(count), TagFormatError);
 
-    const auto data = master.rdRegisters(slave, addr, count, timeout);
+    Master::DataSeq data;
+
+    do
+    {
+        try { data = master.rdRegisters(slave, addr, count, timeout); break; }
+        catch(const TimeoutError &) { if(!retryNum) throw; }
+        catch(const CRCError &) { if(!retryNum) throw; }
+        catch(const ReplyError &) { if(!retryNum) throw; }
+
+        std::this_thread::sleep_for(timeout);
+        --retryNum;
+    } while(retryNum);
 
     return json
     {
@@ -52,24 +66,33 @@ json rdRegisters(Master &master, Addr slave, mSecs timeout, const json &input)
     };
 }
 
-json wrRegister(Master &master, Addr slave, mSecs timeout, const json &input)
+json wrRegister(Master &master, Addr slave, mSecs timeout, const json &input, int retryNum)
 {
-    ENSURE(input.count(ADDR), RuntimeError);
-    ENSURE(input[ADDR].is_number(), RuntimeError);
+    ENSURE(input.count(ADDR), TagMissingError);
+    ENSURE(input[ADDR].is_number(), TagFormatError);
 
     const auto addr = input[ADDR].get<int>();
 
-    ENSURE(inRange<uint16_t>(addr), RuntimeError);
+    ENSURE(inRange<uint16_t>(addr), TagFormatError);
 
-    ENSURE(input.count(VALUE), RuntimeError);
+    ENSURE(input.count(VALUE), TagMissingError);
 
-    ENSURE(input[VALUE].is_number(), RuntimeError);
+    ENSURE(input[VALUE].is_number(), TagFormatError);
 
     const auto value = input[VALUE].get<int>();
 
-    ENSURE(inRange<uint8_t>(value), RuntimeError);
+    ENSURE(inRange<uint8_t>(value), TagFormatError);
 
-    master.wrRegister(slave, addr, value, timeout);
+    do
+    {
+        try { master.wrRegister(slave, addr, value, timeout); break; }
+        catch(const TimeoutError &) { if(!retryNum) throw; }
+        catch(const CRCError &) { if(!retryNum) throw; }
+        catch(const ReplyError &) { if(!retryNum) throw; }
+
+        std::this_thread::sleep_for(timeout);
+        --retryNum;
+    } while(retryNum);
 
     return json
     {
@@ -78,33 +101,42 @@ json wrRegister(Master &master, Addr slave, mSecs timeout, const json &input)
     };
 }
 
-json wrRegisters(Master &master, Addr slave, mSecs timeout, const json &input)
+json wrRegisters(Master &master, Addr slave, mSecs timeout, const json &input, int retryNum)
 {
-    ENSURE(input.count(ADDR), RuntimeError);
-    ENSURE(input[ADDR].is_number(), RuntimeError);
+    ENSURE(input.count(ADDR), TagMissingError);
+    ENSURE(input[ADDR].is_number(), TagFormatError);
 
     const auto addr = input[ADDR].get<int>();
 
-    ENSURE(inRange<uint16_t>(addr), RuntimeError);
+    ENSURE(inRange<uint16_t>(addr), TagFormatError);
 
-    ENSURE(input.count(COUNT), RuntimeError);
-    ENSURE(input[COUNT].is_number(), RuntimeError);
+    ENSURE(input.count(COUNT), TagMissingError);
+    ENSURE(input[COUNT].is_number(), TagFormatError);
 
     const auto count = input[COUNT].get<int>();
 
-    ENSURE(inRange<uint8_t>(count), RuntimeError);
+    ENSURE(inRange<uint8_t>(count), TagFormatError);
 
-    ENSURE(input.count(VALUE), RuntimeError);
+    ENSURE(input.count(VALUE), TagMissingError);
 
-    ENSURE(input[VALUE].is_array(), RuntimeError);
+    ENSURE(input[VALUE].is_array(), TagFormatError);
 
     const auto value = input[VALUE].get<std::vector<int>>();
 
-    ENSURE(int(value.size()) == count, RuntimeError);
+    ENSURE(int(value.size()) == count, TagFormatError);
 
     Master::DataSeq seq(std::begin(value), std::end(value));
 
-    master.wrRegisters(slave, addr, seq, timeout);
+    do
+    {
+        try { master.wrRegisters(slave, addr, seq, timeout); break; }
+        catch(const TimeoutError &) { if(!retryNum) throw; }
+        catch(const CRCError &) { if(!retryNum) throw; }
+        catch(const ReplyError &) { if(!retryNum) throw; }
+
+        std::this_thread::sleep_for(timeout);
+        --retryNum;
+    } while(retryNum);
 
     return json
     {
@@ -114,33 +146,42 @@ json wrRegisters(Master &master, Addr slave, mSecs timeout, const json &input)
     };
 }
 
-json wrBytes(Master &master, Addr slave, mSecs timeout, const json &input)
+json wrBytes(Master &master, Addr slave, mSecs timeout, const json &input, int retryNum)
 {
-    ENSURE(input.count(ADDR), RuntimeError);
-    ENSURE(input[ADDR].is_number(), RuntimeError);
+    ENSURE(input.count(ADDR), TagMissingError);
+    ENSURE(input[ADDR].is_number(), TagFormatError);
 
     const auto addr = input[ADDR].get<int>();
 
-    ENSURE(inRange<uint16_t>(addr), RuntimeError);
+    ENSURE(inRange<uint16_t>(addr), TagFormatError);
 
-    ENSURE(input.count(COUNT), RuntimeError);
-    ENSURE(input[COUNT].is_number(), RuntimeError);
+    ENSURE(input.count(COUNT), TagMissingError);
+    ENSURE(input[COUNT].is_number(), TagFormatError);
 
     const auto count = input[COUNT].get<int>();
 
-    ENSURE(inRange<uint8_t>(count), RuntimeError);
+    ENSURE(inRange<uint8_t>(count), TagFormatError);
 
-    ENSURE(input.count(VALUE), RuntimeError);
+    ENSURE(input.count(VALUE), TagMissingError);
 
-    ENSURE(input[VALUE].is_array(), RuntimeError);
+    ENSURE(input[VALUE].is_array(), TagFormatError);
 
     const auto value = input[VALUE].get<std::vector<int>>();
 
-    ENSURE(int(value.size()) == count, RuntimeError);
+    ENSURE(int(value.size()) == count, TagFormatError);
 
     Master::ByteSeq seq(std::begin(value), std::end(value));
 
-    master.wrBytes(slave, addr, seq, timeout);
+    do
+    {
+        try { master.wrBytes(slave, addr, seq, timeout); break; }
+        catch(const TimeoutError &) { if(!retryNum) throw; }
+        catch(const CRCError &) { if(!retryNum) throw; }
+        catch(const ReplyError &) { if(!retryNum) throw; }
+
+        std::this_thread::sleep_for(timeout);
+        --retryNum;
+    } while(retryNum);
 
     return json
     {
@@ -150,23 +191,34 @@ json wrBytes(Master &master, Addr slave, mSecs timeout, const json &input)
     };
 }
 
-json rdBytes(Master &master, Addr slave, mSecs timeout, const json &input)
+json rdBytes(Master &master, Addr slave, mSecs timeout, const json &input, int retryNum)
 {
-    ENSURE(input.count(ADDR), RuntimeError);
-    ENSURE(input[ADDR].is_number(), RuntimeError);
+    ENSURE(input.count(ADDR), TagMissingError);
+    ENSURE(input[ADDR].is_number(), TagFormatError);
 
     const auto addr = input[ADDR].get<int>();
 
-    ENSURE(inRange<uint16_t>(addr), RuntimeError);
+    ENSURE(inRange<uint16_t>(addr), TagFormatError);
 
-    ENSURE(input.count(COUNT), RuntimeError);
-    ENSURE(input[COUNT].is_number(), RuntimeError);
+    ENSURE(input.count(COUNT), TagMissingError);
+    ENSURE(input[COUNT].is_number(), TagFormatError);
 
     const auto count = input[COUNT].get<int>();
 
-    ENSURE(inRange<uint8_t>(count), RuntimeError);
+    ENSURE(inRange<uint8_t>(count), TagFormatError);
 
-    const auto data = master.rdBytes(slave, addr, count, timeout);
+    Master::ByteSeq data;
+
+    do
+    {
+        try { data = master.rdBytes(slave, addr, count, timeout); break; }
+        catch(const TimeoutError &) { if(!retryNum) throw; }
+        catch(const CRCError &) { if(!retryNum) throw; }
+        catch(const ReplyError &) { if(!retryNum) throw; }
+
+        std::this_thread::sleep_for(timeout);
+        --retryNum;
+    } while(retryNum);
 
     return json
     {
@@ -179,30 +231,47 @@ json rdBytes(Master &master, Addr slave, mSecs timeout, const json &input)
 
 void dispatch(Master &master, const json &input, json &output)
 {
-    ENSURE(input.count(SLAVE), RuntimeError);
-    ENSURE(input[SLAVE].is_number(), RuntimeError);
+    ENSURE(input.count(SLAVE), TagMissingError);
+    ENSURE(input[SLAVE].is_number(), TagFormatError);
 
     const auto slave = input[SLAVE].get<int>();
 
-    ENSURE(inRange<uint8_t>(slave), RuntimeError);
+    ENSURE(inRange<uint8_t>(slave), TagFormatError);
 
-    /* default timeout */
-    mSecs timeout{200};
+    /* default timeout @ 19200bps (default MODBUS RTU rate)
+     * 256 bytes ADU (max size) is transmitted as 2816 bits (11bits / frame)
+     * 11 bits == [start_bit | 8_data_bits | parity_bit | stop_bit]
+     * 1bit takes 52,08us, 256bytes ~ 146666us ~ 147ms
+     * worst case is 256 bytes Request + 256 byte Reply ~ 2x 147ms = 294ms */
+    mSecs timeout{300};
 
     if(input.count(TIMEOUT_MS))
     {
         /* if timeout in milliseconds is provided - use it */
-        ENSURE(input[TIMEOUT_MS].is_number(), RuntimeError);
+        ENSURE(input[TIMEOUT_MS].is_number(), TagFormatError);
 
         const int timeout_ms = input[TIMEOUT_MS].get<int>();
 
-        ENSURE(0 < timeout_ms, RuntimeError);
+        ENSURE(0 < timeout_ms, TagFormatError);
 
         timeout = mSecs{timeout_ms};
     }
 
-    ENSURE(input.count(FCODE), RuntimeError);
-    ENSURE(input[FCODE].is_number(), RuntimeError);
+    auto retryNum = 1;
+
+    if(input.count(RETRY))
+    {
+        ENSURE(input[RETRY].is_number(), TagFormatError);
+
+        const auto retry = input[RETRY].get<int>();
+
+        ENSURE(0 < retry, TagFormatError);
+
+        retryNum = retry;
+    }
+
+    ENSURE(input.count(FCODE), TagMissingError);
+    ENSURE(input[FCODE].is_number(), TagFormatError);
 
     const auto fcode = input[FCODE].get<int>();
 
@@ -210,27 +279,27 @@ void dispatch(Master &master, const json &input, json &output)
     {
         case FCODE_RD_HOLDING_REGISTERS:
         {
-            output.push_back(rdRegisters(master, {uint8_t(slave)}, timeout, input));
+            output.push_back(rdRegisters(master, {uint8_t(slave)}, timeout, input, retryNum));
             break;
         }
         case FCODE_WR_REGISTER:
         {
-            output.push_back(wrRegister(master, {uint8_t(slave)}, timeout, input));
+            output.push_back(wrRegister(master, {uint8_t(slave)}, timeout, input, retryNum));
             break;
         }
         case FCODE_WR_REGISTERS:
         {
-            output.push_back(wrRegisters(master, {uint8_t(slave)}, timeout, input));
+            output.push_back(wrRegisters(master, {uint8_t(slave)}, timeout, input, retryNum));
             break;
         }
         case FCODE_WR_BYTES:
         {
-            output.push_back(wrBytes(master, {uint8_t(slave)}, timeout, input));
+            output.push_back(wrBytes(master, {uint8_t(slave)}, timeout, input, retryNum));
             break;
         }
         case FCODE_RD_BYTES:
         {
-            output.push_back(rdBytes(master, {uint8_t(slave)}, timeout, input));
+            output.push_back(rdBytes(master, {uint8_t(slave)}, timeout, input, retryNum));
             break;
         }
         default:

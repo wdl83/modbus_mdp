@@ -67,7 +67,6 @@ SerialPort::SerialPort(
         dataBits_{dataBits},
         stopBits_{stopBits}
 {
-    ENSURE(-1 == fd_, RuntimeError);
     ENSURE(!devName_.empty(), RuntimeError);
 
     fd_ = ::open(devName_.c_str(), O_RDWR | O_NONBLOCK);
