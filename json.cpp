@@ -48,13 +48,20 @@ json rdRegisters(Master &master, Addr slave, mSecs timeout, const json &input, i
 
     do
     {
+        const auto warn = [&]()
+        {
+            TRACE(
+                TraceLevel::Warning,
+                " failed,"
+                " retryNum", retryNum,
+                " addr ", slave.value,
+                " data ", input.dump());
+        };
         try { data = master.rdRegisters(slave, addr, count, timeout); break; }
-        catch(const TimeoutError &) { if(!retryNum) throw; }
-        catch(const CRCError &) { if(!retryNum) throw; }
-        catch(const ReplyError &) { if(!retryNum) throw; }
-
+        catch(const TimeoutError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const CRCError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const ReplyError &) { --retryNum; warn(); if(!retryNum) throw; }
         std::this_thread::sleep_for(timeout);
-        --retryNum;
     } while(retryNum);
 
     return json
@@ -85,13 +92,20 @@ json wrRegister(Master &master, Addr slave, mSecs timeout, const json &input, in
 
     do
     {
+        const auto warn = [&]()
+        {
+            TRACE(
+                TraceLevel::Warning,
+                " failed,"
+                " retryNum", retryNum,
+                " addr ", slave.value,
+                " data ", input.dump());
+        };
         try { master.wrRegister(slave, addr, value, timeout); break; }
-        catch(const TimeoutError &) { if(!retryNum) throw; }
-        catch(const CRCError &) { if(!retryNum) throw; }
-        catch(const ReplyError &) { if(!retryNum) throw; }
-
+        catch(const TimeoutError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const CRCError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const ReplyError &) { --retryNum; warn(); if(!retryNum) throw; }
         std::this_thread::sleep_for(timeout);
-        --retryNum;
     } while(retryNum);
 
     return json
@@ -129,13 +143,20 @@ json wrRegisters(Master &master, Addr slave, mSecs timeout, const json &input, i
 
     do
     {
+        const auto warn = [&]()
+        {
+            TRACE(
+                TraceLevel::Warning,
+                " failed,"
+                " retryNum", retryNum,
+                " addr ", slave.value,
+                " data ", input.dump());
+        };
         try { master.wrRegisters(slave, addr, seq, timeout); break; }
-        catch(const TimeoutError &) { if(!retryNum) throw; }
-        catch(const CRCError &) { if(!retryNum) throw; }
-        catch(const ReplyError &) { if(!retryNum) throw; }
-
+        catch(const TimeoutError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const CRCError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const ReplyError &) { --retryNum; warn(); if(!retryNum) throw; }
         std::this_thread::sleep_for(timeout);
-        --retryNum;
     } while(retryNum);
 
     return json
@@ -174,13 +195,20 @@ json wrBytes(Master &master, Addr slave, mSecs timeout, const json &input, int r
 
     do
     {
+        const auto warn = [&]()
+        {
+            TRACE(
+                TraceLevel::Warning,
+                " failed,"
+                " retryNum", retryNum,
+                " addr ", slave.value,
+                " data ", input.dump());
+        };
         try { master.wrBytes(slave, addr, seq, timeout); break; }
-        catch(const TimeoutError &) { if(!retryNum) throw; }
-        catch(const CRCError &) { if(!retryNum) throw; }
-        catch(const ReplyError &) { if(!retryNum) throw; }
-
+        catch(const TimeoutError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const CRCError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const ReplyError &) { --retryNum; warn(); if(!retryNum) throw; }
         std::this_thread::sleep_for(timeout);
-        --retryNum;
     } while(retryNum);
 
     return json
@@ -211,13 +239,20 @@ json rdBytes(Master &master, Addr slave, mSecs timeout, const json &input, int r
 
     do
     {
+        const auto warn = [&]()
+        {
+            TRACE(
+                TraceLevel::Warning,
+                " failed,"
+                " retryNum", retryNum,
+                " addr ", slave.value,
+                " data ", input.dump());
+        };
         try { data = master.rdBytes(slave, addr, count, timeout); break; }
-        catch(const TimeoutError &) { if(!retryNum) throw; }
-        catch(const CRCError &) { if(!retryNum) throw; }
-        catch(const ReplyError &) { if(!retryNum) throw; }
-
+        catch(const TimeoutError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const CRCError &) { --retryNum; warn(); if(!retryNum) throw; }
+        catch(const ReplyError &) { --retryNum; warn(); if(!retryNum) throw; }
         std::this_thread::sleep_for(timeout);
-        --retryNum;
     } while(retryNum);
 
     return json
