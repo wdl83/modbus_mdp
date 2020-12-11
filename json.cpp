@@ -53,8 +53,8 @@ json rdRegisters(Master &master, Addr slave, mSecs timeout, const json &input, i
             TRACE(
                 TraceLevel::Warning,
                 " failed,"
-                " retryNum", retryNum,
-                " addr ", slave.value,
+                " retryNum ", retryNum,
+                " addr ", slave,
                 " data ", input.dump());
         };
         try { data = master.rdRegisters(slave, addr, count, timeout); break; }
@@ -97,8 +97,8 @@ json wrRegister(Master &master, Addr slave, mSecs timeout, const json &input, in
             TRACE(
                 TraceLevel::Warning,
                 " failed,"
-                " retryNum", retryNum,
-                " addr ", slave.value,
+                " retryNum ", retryNum,
+                " addr ", slave,
                 " data ", input.dump());
         };
         try { master.wrRegister(slave, addr, value, timeout); break; }
@@ -148,8 +148,8 @@ json wrRegisters(Master &master, Addr slave, mSecs timeout, const json &input, i
             TRACE(
                 TraceLevel::Warning,
                 " failed,"
-                " retryNum", retryNum,
-                " addr ", slave.value,
+                " retryNum ", retryNum,
+                " addr ", slave,
                 " data ", input.dump());
         };
         try { master.wrRegisters(slave, addr, seq, timeout); break; }
@@ -200,8 +200,8 @@ json wrBytes(Master &master, Addr slave, mSecs timeout, const json &input, int r
             TRACE(
                 TraceLevel::Warning,
                 " failed,"
-                " retryNum", retryNum,
-                " addr ", slave.value,
+                " retryNum ", retryNum,
+                " addr ", slave,
                 " data ", input.dump());
         };
         try { master.wrBytes(slave, addr, seq, timeout); break; }
@@ -244,8 +244,8 @@ json rdBytes(Master &master, Addr slave, mSecs timeout, const json &input, int r
             TRACE(
                 TraceLevel::Warning,
                 " failed,"
-                " retryNum", retryNum,
-                " addr ", slave.value,
+                " retryNum ", retryNum,
+                " addr ", slave,
                 " data ", input.dump());
         };
         try { data = master.rdBytes(slave, addr, count, timeout); break; }

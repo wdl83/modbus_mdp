@@ -1,9 +1,9 @@
 #pragma once
 
-
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <ostream>
 #include <vector>
 
 #include "Ensure.h"
@@ -21,6 +21,13 @@ struct Addr
 
     Addr(uint8_t addr): value{addr}
     {}
+
+    friend
+    std::ostream &operator<<(std::ostream &os, Addr addr)
+    {
+        os << int(addr.value);
+        return os;
+    }
 };
 
 using mSecs = std::chrono::milliseconds;

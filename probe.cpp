@@ -16,14 +16,16 @@ void help(const char *argv0, const char *message = nullptr)
     std::cout
         << argv0
         << " -d device"
+        << " [-s slave]"
         << std::endl;
 }
 
 int main(int argc, char *argv[])
 {
     std::string device;
+    int slave = -1;
 
-    for(int c; -1 != (c = ::getopt(argc, argv, "hd:"));)
+    for(int c; -1 != (c = ::getopt(argc, argv, "hd:s:"));)
     {
         switch(c)
         {
@@ -34,6 +36,9 @@ int main(int argc, char *argv[])
             case 'd':
                 device = optarg ? optarg : "";
                 break;
+            case 's':
+                slave = optarg ? ::atoi(optarg) : -1;
+                break;
             case ':':
             case '?':
             default:
@@ -43,7 +48,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(device.empty())
+    if(device.empty() || -1 != slave && (slave < 0 || slave > 255))
     {
         help(argv[0]);
         return EXIT_FAILURE;
@@ -53,8 +58,10 @@ int main(int argc, char *argv[])
     {
         using namespace Modbus;
         RTU::Master master{device.c_str()};
+        const auto begin = -1 == slave ? 1 : slave;
+        const auto end = -1 == slave ? 256 : slave + 1;
 
-        for(auto i = RTU::Addr::max; i >= RTU::Addr::min; --i)
+        for(auto i = begin; i != end; ++i)
         {
             RTU::JSON::json input
             {
@@ -62,29 +69,32 @@ int main(int argc, char *argv[])
                 {"fcode", 3}, /* READ HOLDING REGISTERS */
                 {"addr", 0},
                 {"count", 1},
-                {"timeout_ms", 100}
             };
 
             RTU::JSON::json output;
 
             try
             {
-                std::cout << " slave " << int(i) << " ";
+                TRACE(TraceLevel::Info, "slave ", int(i));
                 Modbus::RTU::JSON::dispatch(master, input, output);
             }
             catch(const RTU::TimeoutError &except)
             {
-                std::cerr << "timeout" << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds{25});
+            }
+            catch(const RTU::ReplyError &except)
+            {
+                TRACE(TraceLevel::Info, "reply error ", except.what(), " from ", int(i));
                 std::this_thread::sleep_for(std::chrono::milliseconds{25});
             }
             catch(const RuntimeError &except)
             {
-                std::cerr << except.what() << std::endl;
+                TRACE(TraceLevel::Warning, "unexpected runtime error ", except.what());
                 std::this_thread::sleep_for(std::chrono::milliseconds{100});
             }
             catch(...)
             {
-                std::cerr << "unsupported exception addr " << i << std::endl;
+                TRACE(TraceLevel::Error, "unsupported exception addr ", i);
                 break;
             }
         }
@@ -92,12 +102,12 @@ int main(int argc, char *argv[])
     }
     catch(const std::exception &except)
     {
-        std::cerr << except.what() << std::endl;
+        TRACE(TraceLevel::Error, except.what());
         return EXIT_FAILURE;
     }
     catch(...)
     {
-        std::cerr << "unsupported exception" << std::endl;
+        TRACE(TraceLevel::Error, "unsupported exception");
         return EXIT_FAILURE;
     }
 
