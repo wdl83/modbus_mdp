@@ -43,11 +43,7 @@ void exec(const std::string &device, const Modbus::RTU::JSON::json &input, int t
                 {
                     Modbus::RTU::JSON::dispatch(master, data, output);
 
-                    if(err)
-                    {
-                        std::cout << output.dump() << std::endl;
-                        err = false;
-                    }
+                    if(err) err = false;
                     /* (silent interval) at least 3.5t character delay ~ 1750us @ 19200bps */
                     std::this_thread::sleep_for(std::chrono::microseconds(1750));
                 }
@@ -57,10 +53,12 @@ void exec(const std::string &device, const Modbus::RTU::JSON::json &input, int t
 
                 if(duration_cast<milliseconds>(diff) > milliseconds{1000 * t})
                 {
-                    std::cout << "rx " << double(master.device().rxCntr() * 11) / diffInS.count() << "bps";
-                    std::cout << " tx " << double(master.device().txCntr() * 11) / diffInS.count() << "bps";
-                    std::cout << " rx_total " << double(master.device().rxTotalCntr() * 11) / (1024 * 1024) << "Mbit";
-                    std::cout << " tx_total " << double(master.device().txTotalCntr() * 11) / (1024 * 1024) << "Mbit\n";
+                    const auto flags = std::cout.flags();
+                    std::cout << "rx " << std::fixed << std::setprecision(0) << double(master.device().rxCntr() * 11) / diffInS.count() << "bps";
+                    std::cout << " tx " << std::fixed << std::setprecision(0) << double(master.device().txCntr() * 11) / diffInS.count() << "bps";
+                    std::cout << " rx_total " << std::fixed << std::setprecision(4) << double(master.device().rxTotalCntr() * 11) / (1024 * 1024) << "Mbit";
+                    std::cout << " tx_total " << std::fixed << std::setprecision(4) << double(master.device().txTotalCntr() * 11) / (1024 * 1024) << "Mbit\n";
+                    std::cout.flags(flags);
 
                     timestamp = now;
                     master.device().clearCntrs();
@@ -73,19 +71,17 @@ void exec(const std::string &device, const Modbus::RTU::JSON::json &input, int t
         {
             if(err) break;
             err = true;
-            std::cerr << "timeout" << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds{50});
+            std::this_thread::sleep_for(std::chrono::milliseconds{500});
         }
         catch(const RuntimeError &except)
         {
             if(err) break;
             err = true;
-            std::cerr << except.what() << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds{100});
+            std::this_thread::sleep_for(std::chrono::milliseconds{500});
         }
         catch(...)
         {
-            std::cerr << "unsupported exception" << std::endl;
+            TRACE(TraceLevel::Error, "unsupported exception");
             break;
         }
     }

@@ -11,6 +11,7 @@ using RequestError = EXCEPTION(std::runtime_error);
 using TagFormatError = EXCEPTION(std::runtime_error);
 using TagMissingError = EXCEPTION(std::runtime_error);
 using TimeoutError = EXCEPTION(std::runtime_error);
+using TimingError = EXCEPTION(std::runtime_error);
 
 }
 }

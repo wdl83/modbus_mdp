@@ -1,14 +1,13 @@
-#include "Master.h"
-#include "crc.h"
-
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <thread>
 
+#include "Master.h"
+#include "crc.h"
+
 namespace Modbus {
 namespace RTU {
-
-
 namespace {
 
 using ByteSeq = Master::ByteSeq;
@@ -21,27 +20,14 @@ constexpr const uint8_t FCODE_USER1_OFFSET = 65;
 constexpr const uint8_t FCODE_RD_BYTES = FCODE_USER1_OFFSET + 0;
 constexpr const uint8_t FCODE_WR_BYTES = FCODE_USER1_OFFSET + 1;
 
-const int gDebug =
-    ::getenv("DEBUG")
-    ? ::atoi(getenv("DEBUG"))
-    : 0;
+const auto gDebug = ::getenv("DEBUG") ? bool(::atoi(getenv("DEBUG"))) : false;
 
-uint8_t lowByte(uint16_t word)
-{
-    return word & 0xFF;
-}
-
-uint8_t highByte(uint16_t word)
-{
-    return word >> 8;
-}
+uint8_t lowByte(uint16_t word) { return word & 0xFF; }
+uint8_t highByte(uint16_t word) { return word >> 8; }
 
 void dump(std::ostream &os, uint8_t data)
 {
-    os
-        << '['
-        << std::hex << std::setw(2) << std::setfill('0') << int(data)
-        << ']';
+    os << std::hex << std::setw(2) << std::setfill('0') << int(data);
 }
 
 void dump(std::ostream &os, const uint8_t *begin, const uint8_t *const end)
@@ -52,6 +38,7 @@ void dump(std::ostream &os, const uint8_t *begin, const uint8_t *const end)
     {
         dump(os, *begin);
         ++begin;
+        if(begin != end) os << ' ';
     }
     os.flags(flags);
 }
@@ -75,26 +62,26 @@ std::string dump(
 
     if(curr != end)
     {
-        if(begin == curr) oss << "timeout\n";
+        if(begin == curr) oss << " timeout\n";
         else if(
             std::distance(begin, curr) == 4 /* addr + fcode + crc */
             && 0x80 < *std::next(begin))
         {
             oss
-                << "exception fcode " << int(*std::next(begin)) << "\n";
+                << " exception fcode " << int(*std::next(begin)) << "\n";
         }
         else if(
             std::distance(begin, curr) == 5 /* addr + fcode + ecode + crc */
             && 0x80 < *std::next(begin))
         {
             oss
-                << "exception fcode " << int(*std::next(begin))
+                << " exception fcode " << int(*std::next(begin))
                 << " ecode " << int(*std::next(begin, 2)) << "\n";
         }
-        else oss << "unsupported (partial reply?)\n";
+        else oss << " unsupported (partial reply?)\n";
     }
     dump(oss, begin, end);
-    if(1 < gDebug) oss << " " << line << " " << tag;
+    if(gDebug) oss << " " << line << " " << tag;
     oss << '\n';
 
     auto str = oss.str();
@@ -189,6 +176,7 @@ void Master::initDevice()
     dev_ =
         std::make_unique<SerialPort>(devName_, baudRate_, parity_, dataBits_, stopBits_);
     ENSURE(dev_, RuntimeError);
+    updateTiming();
 }
 
 void Master::drainDevice()
@@ -215,7 +203,10 @@ uint8_t *Master::readDevice(uint8_t *begin, const uint8_t *const end, mSecs time
     initDevice();
     try
     {
-        return dev_->read(begin, end, timeout);
+        ensureTiming();
+        auto *r = dev_->read(begin, end, timeout);
+        updateTiming();
+        return r;
     }
     catch(CRuntimeError &except)
     {
@@ -234,7 +225,10 @@ const uint8_t *Master::writeDevice(const uint8_t *begin, const uint8_t *const en
     initDevice();
     try
     {
-        return dev_->write(begin, end, timeout);
+        ensureTiming();
+        const auto *r = dev_->write(begin, end, timeout);
+        updateTiming();
+        return r;
     }
     catch(CRuntimeError &except)
     {
@@ -283,6 +277,8 @@ void Master::wrRegister(
         const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         vENSURE(reqEnd == r, RequestError, debug);
     }
+
+    drainDevice();
 
     ByteSeq rep(reqSize + sizeof(CRC), 0);
 
@@ -335,6 +331,8 @@ void Master::wrRegisters(
         const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
         vENSURE(reqEnd == r, RequestError, debug);
     }
+
+    drainDevice();
 
     ByteSeq rep(
         1 /* addr */
@@ -456,6 +454,8 @@ void Master::wrBytes(
         vENSURE(reqEnd == r, RequestError, debug);
     }
 
+    drainDevice();
+
     ByteSeq rep(reqSize + sizeof(CRC), 0);
 
     // reply
@@ -541,7 +541,20 @@ ByteSeq Master::rdBytes(
     return dataSeq;
 }
 
+void Master::updateTiming()
+{
+    timestamp_ = std::chrono::steady_clock::now();
+}
 
+void Master::ensureTiming()
+{
+    using namespace std::chrono;
+
+    const auto now = steady_clock::now();
+    const auto diff = duration_cast<microseconds>(now - timestamp_);
+    //vENSURE(interFrameTimeout() < diff, TimingError, diff.count(), "us");
+    if(milliseconds{0} < diff) std::this_thread::sleep_for(diff);
+}
 
 } /* RTU */
 } /* Modbus */

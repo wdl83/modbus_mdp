@@ -30,6 +30,18 @@ struct Addr
     }
 };
 
+/* MODBUS over serial line specification and implementation guide V1.02
+ * recommended value:
+ * - silent interval (3.5t) : 1750us
+ * - inter frame silent interval (1.5t): 750us
+ * impl. https://github.com/wdl83/modbus_c/
+ * uses timeout = 1.5t + 3.5t to confirm End Of Frame.
+ * So interFrameTimeout is set to:
+ * 1.5t + 3.5t + processing_margin = 750us + 1750us + 500us = 3000us.
+ * */
+inline
+std::chrono::microseconds interFrameTimeout() { return std::chrono::microseconds{3000}; }
+
 using mSecs = std::chrono::milliseconds;
 
 struct Master
@@ -47,11 +59,14 @@ private:
     DataBits dataBits_;
     StopBits stopBits_;
     std::unique_ptr<SerialPort> dev_;
+    std::chrono::steady_clock::time_point timestamp_;
 
     void initDevice();
     void drainDevice();
     uint8_t *readDevice(uint8_t *begin, const uint8_t *const end, mSecs timeout);
     const uint8_t *writeDevice(const uint8_t *begin, const uint8_t *const end, mSecs timeout);
+    void updateTiming();
+    void ensureTiming();
 public:
     Master(
         std::string devName,

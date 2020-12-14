@@ -278,7 +278,7 @@ void dispatch(Master &master, const json &input, json &output)
      * 11 bits == [start_bit | 8_data_bits | parity_bit | stop_bit]
      * 1bit takes 52,08us, 256bytes ~ 146666us ~ 147ms
      * worst case is 256 bytes Request + 256 byte Reply ~ 2x 147ms = 294ms */
-    mSecs timeout{300};
+    mSecs timeout{500};
 
     if(input.count(TIMEOUT_MS))
     {
