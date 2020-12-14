@@ -551,9 +551,19 @@ void Master::ensureTiming()
     using namespace std::chrono;
 
     const auto now = steady_clock::now();
-    const auto diff = duration_cast<microseconds>(now - timestamp_);
-    //vENSURE(interFrameTimeout() < diff, TimingError, diff.count(), "us");
-    if(milliseconds{0} < diff) std::this_thread::sleep_for(diff);
+
+    ENSURE(now > timestamp_, RuntimeError);
+
+    const auto diff =
+        std::min(
+            interFrameTimeout(),
+            duration_cast<microseconds>(now - timestamp_));
+
+    if(microseconds{0} < diff)
+    {
+        TRACE(TraceLevel::Debug, "waiting ", diff.count(), "us");
+        std::this_thread::sleep_for(diff);
+    }
 }
 
 } /* RTU */
