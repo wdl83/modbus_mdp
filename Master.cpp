@@ -157,7 +157,7 @@ void validateCRC(const ByteSeq &seq)
         std::cout << "rCRC ";
         dump(std::cout, recvValue.highByte());
         dump(std::cout, recvValue.lowByte());
-        std::cout << "cCRC ";
+        std::cout << " cCRC ";
         dump(std::cout, calcValue.highByte());
         dump(std::cout, calcValue.lowByte());
         std::cout << "\n";

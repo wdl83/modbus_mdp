@@ -19,6 +19,7 @@ void help(const char *argv0, const char *message = nullptr)
     std::cout
         << argv0
         << " -d device"
+        << " -t (ASCII only)"
         << std::endl;
 }
 
@@ -61,7 +62,7 @@ void dump(std::ostream &os, const uint8_t *begin, const uint8_t *const end)
     os << '\n';
 }
 
-void exec(const std::string &device)
+void exec(const std::string &device, bool hex)
 {
     using namespace Modbus;
     using namespace std::chrono;
@@ -91,7 +92,14 @@ void exec(const std::string &device)
 
                 if(curr != data.data())
                 {
-                    dump(std::cout, data.data(), curr);
+                    if(hex) dump(std::cout, data.data(), curr);
+                    else
+                    {
+                        for(auto begin = data.data(); begin != curr; ++begin)
+                        {
+                            std::cout << *begin;
+                        }
+                    }
                 }
 
             }
@@ -113,8 +121,9 @@ void exec(const std::string &device)
 int main(int argc, char *argv[])
 {
     std::string device;
+    bool hex = true;
 
-    for(int c; -1 != (c = ::getopt(argc, argv, "hd:"));)
+    for(int c; -1 != (c = ::getopt(argc, argv, "htd:"));)
     {
         switch(c)
         {
@@ -124,6 +133,9 @@ int main(int argc, char *argv[])
                 break;
             case 'd':
                 device = optarg ? optarg : "";
+                break;
+            case 't':
+                hex = false;
                 break;
             case ':':
             case '?':
@@ -142,7 +154,7 @@ int main(int argc, char *argv[])
 
     try
     {
-        exec(device);
+        exec(device, hex);
     }
     catch(const std::exception &except)
     {
