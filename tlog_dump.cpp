@@ -48,6 +48,15 @@ void tlog_dump(const json &input)
     for(auto i : data) std::cout << char(i);
 }
 
+void parse(const json &input)
+{
+    if(input.is_array())
+    {
+        for(const auto &i : input) parse(i);
+    }
+    else tlog_dump(input);
+}
+
 }
 
 int main(int argc, char *argv[])
@@ -56,7 +65,8 @@ int main(int argc, char *argv[])
 
     std::cin >> input;
 
-    for(const auto &i : input) tlog_dump(i);
+    parse(input);
+
     std::cout << std::endl;
 
     return EXIT_SUCCESS;
