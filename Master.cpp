@@ -13,7 +13,9 @@ namespace {
 using ByteSeq = Master::ByteSeq;
 using DataSeq  = Master::DataSeq;
 
+constexpr const uint8_t FCODE_RD_COILS = 1;
 constexpr const uint8_t FCODE_RD_HOLDING_REGISTERS = 3;
+constexpr const uint8_t FCODE_WR_COIL = 5;
 constexpr const uint8_t FCODE_WR_REGISTER = 6;
 constexpr const uint8_t FCODE_WR_REGISTERS = 16;
 constexpr const uint8_t FCODE_USER1_OFFSET = 65;
@@ -81,7 +83,7 @@ std::string dump(
         else oss << " unsupported (partial reply?)\n";
     }
     dump(oss, begin, end);
-    if(gDebug) oss << " " << line << " " << tag;
+    if(gDebug) oss << ", " << line << ":" << tag;
     oss << '\n';
 
     auto str = oss.str();
@@ -105,15 +107,17 @@ ByteSeq toByteSeq(const DataSeq &dataSeq)
     return byteSeq;
 }
 
-DataSeq toDataSeq(const ByteSeq &byteSeq)
+DataSeq toDataSeq(const ByteSeq &byteSeq, bool zeroPadding = false)
 {
-    ENSURE(0u == (byteSeq.size() & 1), RuntimeError);
+    ENSURE(0u == (byteSeq.size() & 1) || zeroPadding, RuntimeError);
+
+    const auto end = std::end(byteSeq);
     DataSeq dataSeq;
 
-    for(auto i = std::begin(byteSeq); i != std::end(byteSeq);)
+    for(auto i = std::begin(byteSeq); i != end;)
     {
         const uint16_t highByte = *i++;
-        const uint16_t lowByte = *i++;
+        const uint16_t lowByte = i == end ? UINT8_C(0) : *i++;
         dataSeq.push_back((highByte << 8) | lowByte);
     }
     return dataSeq;
@@ -248,6 +252,62 @@ SerialPort &Master::device()
     return *dev_;
 }
 
+void Master::wrCoil(
+    Addr slaveAddr,
+    uint16_t memAddr,
+    bool data,
+    mSecs timeout)
+{
+    ByteSeq req
+    {
+        slaveAddr.value,
+        FCODE_WR_COIL,
+        highByte(memAddr),
+        lowByte(memAddr),
+        data ? static_cast<uint8_t>(0xFF) : static_cast<uint8_t>(0),
+        UINT8_C(0)
+    };
+
+    appendCRC(req);
+
+    // request
+    {
+        const auto reqBegin = req.data();
+        const auto reqEnd = reqBegin + req.size();
+        const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
+
+        const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
+        vENSURE(reqEnd == r, RequestError, debug);
+    }
+
+    drainDevice();
+
+    constexpr const auto repSize =
+        1 /* slave */
+        + 1 /* fcode */
+        + 2 /* address */
+        + 2 /* value */
+        + sizeof(CRC);
+    ByteSeq rep(repSize, 0);
+
+    // reply
+    {
+        const auto repBegin = rep.data();
+        const auto repEnd = repBegin + rep.size();
+        const auto r = readDevice(repBegin, repEnd, timeout);
+
+        const auto debug = dump(DataSource::Slave, __FUNCTION__, __LINE__, repBegin, repEnd, r);
+        vENSURE(repBegin != r, TimeoutError, debug);
+    }
+
+    validateCRC(rep);
+    ENSURE(
+        std::equal(
+            std::begin(rep), std::next(std::begin(rep), rep.size() - sizeof(CRC)),
+            std::begin(req)),
+        ReplyError);
+}
+
 void Master::wrRegister(
     Addr slaveAddr,
     uint16_t memAddr,
@@ -357,6 +417,68 @@ void Master::wrRegisters(
             std::begin(rep), std::next(std::begin(rep), rep.size() - sizeof(CRC)),
             std::begin(req)),
         ReplyError);
+}
+
+DataSeq Master::rdCoils(
+    Addr slaveAddr,
+    uint16_t memAddr,
+    uint16_t count,
+    mSecs timeout)
+{
+    ENSURE(0 < count, RuntimeError);
+    ENSURE(0x7D1 > count, RuntimeError);
+
+    ByteSeq req
+    {
+        slaveAddr.value,
+        FCODE_RD_COILS,
+        highByte(memAddr),
+        lowByte(memAddr),
+        highByte(count),
+        lowByte(count)
+    };
+
+    appendCRC(req);
+
+    // request
+    {
+        const auto reqBegin = req.data();
+        const auto reqEnd = reqBegin + req.size();
+        const auto r = writeDevice(reqBegin, reqEnd, mSecs{0});
+
+        const auto debug = dump(DataSource::Master, __FUNCTION__, __LINE__, reqBegin, reqEnd, r);
+        vENSURE(reqEnd == r, RequestError, debug);
+    }
+
+    drainDevice();
+
+    constexpr const auto repHeaderSize = 1 /* slave */ + 1 /* fcode */ + 1 /* byte count */;
+    const auto payloadSize = (count >> 3) + (count & 0x7 ? 1 : 0);
+    const auto repSize = repHeaderSize + payloadSize  /* data[] */ + sizeof(CRC);
+    ByteSeq rep(repSize, 0);
+
+    // reply
+    {
+        const auto repBegin = rep.data();
+        const auto repEnd = repBegin + rep.size();
+        const auto r = readDevice(repBegin, repEnd, timeout);
+
+        const auto debug = dump(DataSource::Slave, __FUNCTION__, __LINE__, repBegin, repEnd, r);
+        vENSURE(repBegin != r, TimeoutError, debug);
+    }
+
+    validateCRC(rep);
+    ENSURE(rep[0] == slaveAddr.value, ReplyError);
+    ENSURE(rep[1] == FCODE_RD_COILS, ReplyError);
+
+    auto dataSeq =
+        toDataSeq(
+            ByteSeq
+            {
+                std::next(std::begin(rep), repHeaderSize),
+                std::next(std::begin(rep), rep.size() - sizeof(CRC))
+            }, payloadSize & 1 /* zeroPadding */);
+    return dataSeq;
 }
 
 DataSeq Master::rdRegisters(

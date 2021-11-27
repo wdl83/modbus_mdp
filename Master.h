@@ -82,8 +82,10 @@ public:
     {}
 
     SerialPort &device();
+    void wrCoil(Addr slaveAddr, uint16_t memAddr, bool data, mSecs timeout);
     void wrRegister(Addr slaveAddr, uint16_t memAddr, uint16_t data, mSecs timeout);
     void wrRegisters(Addr slaveAddr, uint16_t memAddr, const DataSeq &data, mSecs timeout);
+    DataSeq rdCoils(Addr slaveAddr, uint16_t memAddr, uint16_t count, mSecs timeout);
     DataSeq rdRegisters(Addr slaveAddr, uint16_t memAddr, uint8_t count, mSecs timeout);
     void wrBytes(Addr slaveAddr, uint16_t memAddr, const ByteSeq &data, mSecs timeout);
     ByteSeq rdBytes(Addr slaveAddr, uint16_t memAddr, uint8_t count, mSecs timeout);
