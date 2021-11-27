@@ -52,7 +52,7 @@ Modbus::SerialPort::Parity toParity(const std::string &parity)
 
 int main(int argc, char *argv[])
 {
-    std::string device, iname, oname, rate = "19200", parity = "Even";
+    std::string device, iname, oname, rate = "19200", parity = "E";
 
     for(int c; -1 != (c = ::getopt(argc, argv, "hd:i:o:r:p:"));)
     {
