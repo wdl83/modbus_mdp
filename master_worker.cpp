@@ -16,9 +16,14 @@ void help(const char *argv0, const char *message = nullptr)
 
 int main(int argc, char *const argv[])
 {
-    std::string address, device, rate = "19200", parity = "E";
+    std::string
+        address,
+        device,
+        service,
+        rate = "19200",
+        parity = "E";
 
-    for(int c; -1 != (c = ::getopt(argc, argv, "ha:d:r:p:"));)
+    for(int c; -1 != (c = ::getopt(argc, argv, "ha:d:s:r:p:"));)
     {
         switch(c)
         {
@@ -31,6 +36,9 @@ int main(int argc, char *const argv[])
                 break;
             case 'd':
                 device = optarg ? optarg : "";
+                break;
+            case 's':
+                service = optarg ? optarg : "";
                 break;
             case 'r':
                 rate = optarg ? optarg : "";
@@ -53,6 +61,8 @@ int main(int argc, char *const argv[])
         return EXIT_FAILURE;
     }
 
+    if(service.empty()) service = "modbus_master_" + device;
+
     try
     {
         Modbus::RTU::Master master
@@ -66,7 +76,7 @@ int main(int argc, char *const argv[])
 
         Worker{}.exec(
             address,
-            "modbus_master_" + device,
+            service,
             [&master](zmqpp::message message)
             {
                 using json = Modbus::RTU::JSON::json;
