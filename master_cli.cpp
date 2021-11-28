@@ -19,37 +19,6 @@ void help(const char *argv0, const char *message = nullptr)
         << std::endl;
 }
 
-Modbus::SerialPort::BaudRate toBaudRate(const std::string &rate)
-{
-    using BaudRate = Modbus::SerialPort::BaudRate;
-
-    if("1200" == rate) return BaudRate::BR_1200;
-    else if("2400" == rate) return BaudRate::BR_2400;
-    else if("4800" == rate) return BaudRate::BR_4800;
-    else if("9600" == rate) return BaudRate::BR_9600;
-    else if("19200" == rate) return BaudRate::BR_19200;
-    else if("38400" == rate) return BaudRate::BR_38400;
-    else if("57600" == rate) return BaudRate::BR_57600;
-    else if("11520" == rate) return BaudRate::BR_115200;
-
-    TRACE(TraceLevel::Warning, "unsupported rate, ", rate);
-
-    return BaudRate::BR_19200;
-}
-
-Modbus::SerialPort::Parity toParity(const std::string &parity)
-{
-    using Parity = Modbus::SerialPort::Parity;
-
-    if("N" == parity) return Parity::None;
-    else if("O" == parity) return Parity::Odd;
-    else if("E" == parity) return Parity::Even;
-
-    TRACE(TraceLevel::Warning, "unsupported parity, ", parity);
-
-    return Parity::Even;
-}
-
 int main(int argc, char *argv[])
 {
     std::string device, iname, oname, rate = "19200", parity = "E";
@@ -104,8 +73,8 @@ int main(int argc, char *argv[])
         Modbus::RTU::Master master
         {
             device.c_str(),
-            toBaudRate(rate),
-            toParity(parity),
+            Modbus::toBaudRate(rate),
+            Modbus::toParity(parity),
             Modbus::SerialPort::DataBits::Eight,
             Modbus::SerialPort::StopBits::One
         };

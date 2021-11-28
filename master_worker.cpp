@@ -16,9 +16,9 @@ void help(const char *argv0, const char *message = nullptr)
 
 int main(int argc, char *const argv[])
 {
-    std::string address, device;
+    std::string address, device, rate = "19200", parity = "E";
 
-    for(int c; -1 != (c = ::getopt(argc, argv, "ha:d:"));)
+    for(int c; -1 != (c = ::getopt(argc, argv, "ha:d:r:p:"));)
     {
         switch(c)
         {
@@ -31,6 +31,12 @@ int main(int argc, char *const argv[])
                 break;
             case 'd':
                 device = optarg ? optarg : "";
+                break;
+            case 'r':
+                rate = optarg ? optarg : "";
+                break;
+            case 'p':
+                parity = optarg ? optarg : "";
                 break;
             case ':':
             case '?':
@@ -49,7 +55,15 @@ int main(int argc, char *const argv[])
 
     try
     {
-        Modbus::RTU::Master master{device.c_str()};
+        Modbus::RTU::Master master
+        {
+            device.c_str(),
+            Modbus::toBaudRate(rate),
+            Modbus::toParity(parity),
+            Modbus::SerialPort::DataBits::Eight,
+            Modbus::SerialPort::StopBits::One
+        };
+
         Worker{}.exec(
             address,
             "modbus_master_" + device,
@@ -61,6 +75,8 @@ int main(int argc, char *const argv[])
                 for(auto i = 0u; i < message.parts(); ++i)
                 {
                     auto input = json::parse(message.get<std::string>(i));
+
+                    TRACE(TraceLevel::Info, input.dump());
 
                     ENSURE(input.is_array(), RuntimeError);
 
@@ -77,12 +93,12 @@ int main(int argc, char *const argv[])
     }
     catch(const std::exception &except)
     {
-        std::cerr << "std exception " << except.what() << std::endl;
+        TRACE(TraceLevel::Error, "std exception ", except.what());
         return EXIT_FAILURE;
     }
     catch(...)
     {
-        std::cerr << "unsupported exception" << std::endl;
+        TRACE(TraceLevel::Error, "unsupported exception");
         return EXIT_FAILURE;
     }
 

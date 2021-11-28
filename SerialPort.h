@@ -60,4 +60,7 @@ public:
     uint64_t txTotalCntr() const {return txTotalCntr_;}
 };
 
+SerialPort::BaudRate toBaudRate(const std::string &);
+SerialPort::Parity toParity(const std::string &);
+
 } /* Modbus */
