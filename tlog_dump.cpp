@@ -61,6 +61,9 @@ void parse(const json &input)
 
 int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+
     json input;
 
     std::cin >> input;
