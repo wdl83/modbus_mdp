@@ -51,7 +51,7 @@ void dump(std::ostream &os, const uint8_t *begin, const uint8_t *const end)
 
         while(asciiCurr != end && 16 > asciiCntr)
         {
-            if(31 < *asciiCurr && 128 > *asciiCurr) os << static_cast<const char>(*asciiCurr);
+            if(31 < *asciiCurr && 128 > *asciiCurr) os << static_cast<char>(*asciiCurr);
             else os << '?';
             ++asciiCurr;
             ++asciiCntr;
