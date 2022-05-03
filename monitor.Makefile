@@ -1,7 +1,8 @@
 include Makefile.defs
 
-DEFS = \
-	   -I ..
+OBJ_DIR = obj
+
+# DEFS =
 
 CFLAGS += $(DEFS)
 CXXFLAGS += $(DEFS)
@@ -17,3 +18,6 @@ CXXSRCS = \
 		monitor.cpp
 
 include Makefile.rules
+
+clean:
+	rm $(OBJ_DIR) -rf

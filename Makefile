@@ -14,6 +14,18 @@ all: \
 	make -f probe.Makefile
 	make -f tlog_dump.Makefile
 
-clean:
-	rm *.o -f
-	rm *.elf -f
+clean: \
+	bw_test.Makefile \
+	master_cli.Makefile \
+	master_worker.Makefile \
+	monitor.Makefile \
+	probe.Makefile \
+	tlog_dump.Makefile 
+	make -f bw_test.Makefile clean
+	make -f master_cli.Makefile clean
+	make -f master_worker.Makefile clean
+	make -f monitor.Makefile clean
+	make -f probe.Makefile clean
+	make -f tlog_dump.Makefile clean
+
+

@@ -1,8 +1,11 @@
 include Makefile.defs
 
+MDP = mdp
+ZMQ = ../zmqpp-root
+OBJ_DIR = obj
+
 DEFS = \
-	   -I ../ \
-	   -I ../zmqpp-root/include
+	   -I $(ZMQ)/include
 
 CFLAGS += $(DEFS)
 CXXFLAGS += $(DEFS) 
@@ -10,7 +13,7 @@ CXXFLAGS += $(DEFS)
 TARGET = master_worker
 
 LDFLAGS += \
-	-L ../zmqpp-root/lib \
+	-L $(ZMQ)/lib \
 	-lpthread \
 	-lzmq \
 	-lzmqpp
@@ -18,12 +21,12 @@ LDFLAGS += \
 # CSRCS =
 
 CXXSRCS = \
-	../mdp/MutualHeartbeatMonitor.cpp \
-	../mdp/Worker.cpp \
-	../mdp/Worker.cpp \
-	../mdp/WorkerTask.cpp \
-	../mdp/ZMQIdentity.cpp \
-	../mdp/ZMQWorkerContext.cpp \
+	$(MDP)/MutualHeartbeatMonitor.cpp \
+	$(MDP)/Worker.cpp \
+	$(MDP)/Worker.cpp \
+	$(MDP)/WorkerTask.cpp \
+	$(MDP)/ZMQIdentity.cpp \
+	$(MDP)/ZMQWorkerContext.cpp \
 	Master.cpp \
 	SerialPort.cpp \
 	crc.cpp \
@@ -31,3 +34,6 @@ CXXSRCS = \
 	master_worker.cpp
 
 include Makefile.rules
+
+clean:
+	rm $(OBJ_DIR) -rf

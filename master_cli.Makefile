@@ -1,8 +1,8 @@
 include Makefile.defs
 
-DEFS = \
-	   -I ../ \
-	   -I ../zmqpp-root/include
+OBJ_DIR = obj
+
+# DEFS =
 
 CFLAGS += $(DEFS)
 CXXFLAGS += $(DEFS)
@@ -21,3 +21,6 @@ CXXSRCS = \
 		master_cli.cpp
 
 include Makefile.rules
+
+clean:
+	rm $(OBJ_DIR) -rf
