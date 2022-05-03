@@ -15,7 +15,12 @@ void help(const char *argv0, const char *message = nullptr)
 
     std::cout
         << argv0
-        << " -d device -i input.json|- [-o output.json] -r rate -p parity(O/E/N)"
+        <<
+            " -d device"
+            " -i input.json|-"
+            " [-o output.json]"
+            " [-r rate]"
+            " [-p parity(O/E/N)]"
         << std::endl;
 }
 

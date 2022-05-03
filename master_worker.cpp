@@ -10,7 +10,11 @@ void help(const char *argv0, const char *message = nullptr)
 
     std::cout
         << argv0
-        << " -a broker_address -d device"
+        <<
+            " -a broker_address"
+            " -d device"
+            " [-r rate]"
+            " [-p parity(O/E/N)]"
         << std::endl;
 }
 
