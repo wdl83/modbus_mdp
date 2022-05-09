@@ -472,12 +472,10 @@ DataSeq Master::rdCoils(
     ENSURE(rep[1] == FCODE_RD_COILS, ReplyError);
 
     auto dataSeq =
-        toDataSeq(
-            ByteSeq
-            {
-                std::next(std::begin(rep), repHeaderSize),
-                std::next(std::begin(rep), rep.size() - sizeof(CRC))
-            }, payloadSize & 1 /* zeroPadding */);
+        DataSeq(
+            std::next(std::begin(rep), repHeaderSize),
+            std::next(std::begin(rep), rep.size() - sizeof(CRC)));
+
     return dataSeq;
 }
 

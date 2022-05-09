@@ -198,7 +198,7 @@ uint8_t *SerialPort::read(uint8_t *begin, const uint8_t *const end, mSecs timeou
         }
     }
 
-    debug(__PRETTY_FUNCTION__, begin, end, curr);
+    debug(__FUNCTION__, begin, end, curr);
     return curr;
 }
 
@@ -243,7 +243,7 @@ const uint8_t *SerialPort::write(const uint8_t *begin, const uint8_t *const end,
         }
     }
 
-    debug(__PRETTY_FUNCTION__, begin, end, curr);
+    debug(__FUNCTION__, begin, end, curr);
     return curr;
 }
 

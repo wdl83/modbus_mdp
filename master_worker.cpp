@@ -102,6 +102,7 @@ int main(int argc, char *const argv[])
                 }
 
                 //std::cout << " OUTOUT " << output.dump(2) << std::endl;
+                std::cout << std::flush;
                 return MDP::makeMessage(output.dump());
             });
     }
