@@ -80,7 +80,13 @@ std::string dump(
                 << " exception fcode " << int(*std::next(begin))
                 << " ecode " << int(*std::next(begin, 2)) << "\n";
         }
-        else oss << " unsupported (partial reply?)\n";
+        else
+        {
+            oss
+                << " unsupported (partial reply?)"
+                << ", length " << curr - begin
+                << ", expected " << end - begin << "\n";
+        }
     }
     dump(oss, begin, end);
     if(gDebug) oss << ", " << line << ":" << tag;
