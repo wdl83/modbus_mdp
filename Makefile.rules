@@ -1,20 +1,17 @@
 .PRECIOUS: $(OBJ_DIR)/%.o
 
-OBJS = $(CSRCS:.c=.o) 
-OBJS += $(CXXSRCS:.cpp=.o) 
+OBJS = $(CXXSRCS:.cpp=.o) 
 DST_OBJS = $(addprefix $(OBJ_DIR)/, $(OBJS))
 TARGETS = $(OBJ_DIR)/$(TARGET).elf
 
 all:: $(TARGETS)
-	echo $(TARGETS)
 
 $(OBJ_DIR)/%.elf: $(DST_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
-
-$(OBJ_DIR)/%.o: %.c
-	mkdir -p "$(OBJ_DIR)/`dirname $<`"
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ -c $<
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 $(OBJ_DIR)/%.o: %.cpp
 	mkdir -p "$(OBJ_DIR)/`dirname $<`"
-	$(CC) $(CPPFLAGS) $(CXXFLAGS) -o $@ -c $<
+	$(CC) $(CXXFLAGS) -o $@ -c $<
+
+clean:
+	rm $(OBJ_DIR) -rf

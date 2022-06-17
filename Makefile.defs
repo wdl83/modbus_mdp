@@ -1,6 +1,7 @@
-CC=clang
+CC=gcc
+OBJ_DIR = obj
 
-FLAGS = \
+CXXFLAGS = \
 	-DENABLE_TRACE \
 	-Os \
 	-Wall \
@@ -8,21 +9,13 @@ FLAGS = \
 	-Wno-parentheses \
 	-Wshadow \
 	-Wunreachable-code \
-	-fomit-frame-pointer \
-	-g
+	-g \
+	-std=c++14
 
 ifndef RELEASE
-	FLAGS +=  \
+	CXXFLAGS +=  \
 		-fsanitize=address
 endif
-
-CFLAGS = \
-	$(FLAGS) \
-	-std=gnu99
-
-CXXFLAGS = \
-	$(FLAGS) \
-	-std=c++14 \
 
 LDFLAGS = \
 	-lstdc++ 

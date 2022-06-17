@@ -1,17 +1,6 @@
 include Makefile.defs
 
-OBJ_DIR = obj
-
-# DEFS =
-
-CFLAGS += $(DEFS)
-CXXFLAGS += $(DEFS)
-
 TARGET = probe
-
-#LDFLAGS +=
-
-# CSRCS =
 
 CXXSRCS = \
 		Master.cpp \
@@ -21,6 +10,3 @@ CXXSRCS = \
 		probe.cpp
 
 include Makefile.rules
-
-clean:
-	rm $(OBJ_DIR) -rf
