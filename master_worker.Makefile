@@ -1,7 +1,7 @@
 include Makefile.defs
 
 MDP = mdp
-ZMQ = zmqpp/zmqpp-root/
+ZMQ = zmqpp-root
 OBJ_DIR = obj
 
 DEFS = \

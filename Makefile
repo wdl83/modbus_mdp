@@ -5,7 +5,11 @@ all: \
 	master_worker.Makefile \
 	monitor.Makefile \
 	probe.Makefile \
-	tlog_dump.Makefile
+	tlog_dump.Makefile \
+	zmqpp/Makefile
+	mkdir -p zmqpp-root
+	make -C zmqpp
+	make PREFIX=${PWD}/zmqpp-root install -C zmqpp
 	make -f bw_test.Makefile
 	make -f chslv.Makefile
 	make -f master_cli.Makefile
