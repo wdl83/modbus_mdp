@@ -1,35 +1,27 @@
-all: \
-	bw_test.Makefile \
-	chslv.Makefile \
-	master_cli.Makefile \
-	master_worker.Makefile \
-	monitor.Makefile \
-	probe.Makefile \
-	tlog_dump.Makefile \
-	zmqpp/Makefile
-	mkdir -p zmqpp-root
+ifndef OBJ_DIR
+OBJ_DIR = ${PWD}/obj
+export OBJ_DIR
+endif
+
+ifndef DST_DIR
+DST_DIR = ${PWD}/dst
+export DST_DIR
+endif
+
+all: master_worker.Makefile zmqpp/Makefile
 	make -C zmqpp
-	make PREFIX=${PWD}/zmqpp-root install -C zmqpp
-	make -f bw_test.Makefile
-	make -f chslv.Makefile
-	make -f master_cli.Makefile
+	mkdir -p ${OBJ_DIR}/zmqpp
+	make PREFIX=${OBJ_DIR}/zmqpp install -C zmqpp
 	make -f master_worker.Makefile
-	make -f monitor.Makefile
-	make -f probe.Makefile
-	make -f tlog_dump.Makefile
 
-clean: \
-	bw_test.Makefile \
-	master_cli.Makefile \
-	master_worker.Makefile \
-	monitor.Makefile \
-	probe.Makefile \
-	tlog_dump.Makefile 
-	make -f bw_test.Makefile clean
-	make -f master_cli.Makefile clean
+install: master_worker.Makefile
+	make -C zmqpp
+	mkdir -p ${OBJ_DIR}/zmqpp
+	make PREFIX=${OBJ_DIR}/zmqpp install -C zmqpp
+	make -f master_worker.Makefile install
+
+clean: master_worker.Makefile
 	make -f master_worker.Makefile clean
-	make -f monitor.Makefile clean
-	make -f probe.Makefile clean
-	make -f tlog_dump.Makefile clean
 
-
+purge:
+	rm $(OBJ_DIR) -rf
