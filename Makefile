@@ -18,6 +18,7 @@ install: master_worker.Makefile
 	make -C zmqpp
 	mkdir -p ${OBJ_DIR}/zmqpp
 	make PREFIX=${OBJ_DIR}/zmqpp install -C zmqpp
+	make PREFIX=${DST_DIR} install -C zmqpp
 	make -f master_worker.Makefile install
 
 clean: master_worker.Makefile
