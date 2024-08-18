@@ -1,7 +1,8 @@
 #include <unistd.h>
 
-#include "Worker.h"
-#include "json.h"
+#include "mdp/Worker.h"
+#include "modbus_tools/Except.h"
+#include "modbus_tools/json.h"
 
 
 void help(const char *argv0, const char *message = nullptr)
@@ -78,10 +79,14 @@ int main(int argc, char *const argv[])
             Modbus::SerialPort::StopBits::One
         };
 
+        auto timeoutCntr = 0;
+        const auto timeoutNumMax =
+            ::getenv("TIMEOUT_NUM_MAX") ? ::atoi(getenv("TIMEOUT_NUM_MAX")) : 10;
+
         Worker{}.exec(
             address,
             service,
-            [&master](zmqpp::message message)
+            [&](zmqpp::message message)
             {
                 using json = Modbus::RTU::JSON::json;
                 json output;
@@ -97,12 +102,26 @@ int main(int argc, char *const argv[])
                     for(const auto &object : input)
                     {
                         ENSURE(object.is_object(), RuntimeError);
-                        Modbus::RTU::JSON::dispatch(master, object, output);
+
+                        try
+                        {
+                            Modbus::RTU::JSON::dispatch(master, object, output);
+                            timeoutCntr = 0;
+                        }
+                        catch(Modbus::RTU::TimeoutError &error)
+                        {
+                            if(timeoutCntr < timeoutNumMax)
+                            {
+                                TRACE(TraceLevel::Warning, "timeoutCntr: ", timeoutCntr);
+                                ++timeoutCntr;
+                                return MDP::makeMessage(json{{"status", "timeout"}}.dump());
+                            }
+                            throw;
+                        }
                     }
                 }
 
-                //std::cout << " OUTOUT " << output.dump(2) << std::endl;
-                std::cout << std::flush;
+                //std::cout << " OUTOUT " << output.dump(2) << '\n' << std::flush;
                 return MDP::makeMessage(output.dump());
             });
     }
