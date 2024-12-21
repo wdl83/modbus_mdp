@@ -1,6 +1,5 @@
 include Makefile.defs
 
-
 TARGET = master_worker
 
 CXXSRCS = \

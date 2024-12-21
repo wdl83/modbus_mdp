@@ -1,12 +1,7 @@
 CC=gcc
 
-ifndef OBJ_DIR
-$(error please define OBJ_DIR)
-endif
-
-ifndef DST_DIR
-$(error please define DST_DIR)
-endif
+OBJ_DIR ?= obj
+DST_DIR ?= dst
 
 CXXFLAGS = \
 	-DENABLE_TRACE \
