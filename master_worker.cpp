@@ -14,6 +14,7 @@ void help(const char *argv0, const char *message = nullptr)
         <<
             " -a broker_address"
             " -d device"
+            " -s service_name"
             " [-r rate]"
             " [-p parity(O/E/N)]"
         << std::endl;
@@ -60,13 +61,11 @@ int main(int argc, char *const argv[])
         }
     }
 
-    if(address.empty() || device.empty())
+    if(address.empty() || device.empty() || service.empty())
     {
         help(argv[0], "missing required arguments");
         return EXIT_FAILURE;
     }
-
-    if(service.empty()) service = "modbus_master_" + device;
 
     try
     {
