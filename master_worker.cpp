@@ -94,7 +94,7 @@ int main(int argc, char *const argv[])
                 {
                     auto input = json::parse(message.get<std::string>(i));
 
-                    TRACE(TraceLevel::Info, input.dump());
+                    TRACE(TraceLevel::Info, service, ' ', input.dump());
 
                     ENSURE(input.is_array(), RuntimeError);
 
